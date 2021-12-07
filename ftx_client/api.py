@@ -3,6 +3,12 @@ import json
 import time
 import datetime
 import pandas as pd
+import queue
+from concurrent.futures import ThreadPoolExecutor
+from threading import Semaphore
+import concurrent
+import sys
+
 
 from requests import Request, Session
 
@@ -255,6 +261,56 @@ class HelperClient(RestClient):
             df.index = pd.to_datetime(df['time'])
             return df
         return None
+
+    def get_historical_ticks_threaded(self, market, since, til):
+        cum_ticks = {}
+        max_threads = 20
+        last_update = None
+
+        def _thread_action(window_start, window_end):
+            # TODO some error handling around missing 'result' key
+            nonlocal last_update
+            last_update = time.time()
+            ticks = self.get_ticks(market, start=window_start, end=window_end)['result']
+            # if too many results, split the window and put them back on the queue
+            if len(ticks) >= 100 and window_end - window_start > 1:
+                new_end = (window_start + window_end) // 2
+                q.put((window_start, new_end))
+                q.put((new_end, window_end))
+            else:
+                cum_ticks[window_start] = ticks
+
+            print(len(cum_ticks), window_start, window_end)
+
+
+        since_ts = int(time.mktime(since.timetuple()))
+        til_ts = int(time.mktime(til.timetuple()))
+
+        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+            q = queue.Queue(1000)
+
+            q.put((since_ts, til_ts))
+            last_update = time.time()
+
+            # only exit if queue is empty AND all threads are available
+            while not (q.empty() and time.time() - last_update > 15):
+                try:
+                    item = q.get(timeout=5)
+                    executor.submit(_thread_action, item[0], item[1])
+                except queue.Empty:
+                    break
+
+        data = [y[1] for y in sorted([x for x in cum_ticks.items()], key=lambda kv: kv[0])]
+        dfs = []
+        for tick in data:
+            df = pd.DataFrame(tick)
+            # each request orders by time desc, so you get like: 5-4-3-2-1-9-8-7-6
+            # so reverse each df first before appending
+            dfs.append(df.iloc[::-1])
+        if len(dfs) > 0:
+            df = pd.concat(dfs)
+            df.index = pd.to_datetime(df['time'])
+            return df
 
     def get_historical_ticks(self, market, since, til, verbose=False):
         """
