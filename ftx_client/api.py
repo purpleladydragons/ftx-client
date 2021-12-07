@@ -264,7 +264,7 @@ class HelperClient(RestClient):
 
     def get_historical_ticks_threaded(self, market, since, til):
         cum_ticks = {}
-        max_threads = 20
+        max_threads = 30
         last_update = None
 
         def _thread_action(window_start, window_end):
@@ -280,9 +280,6 @@ class HelperClient(RestClient):
             else:
                 cum_ticks[window_start] = ticks
 
-            print(len(cum_ticks), window_start, window_end)
-
-
         since_ts = int(time.mktime(since.timetuple()))
         til_ts = int(time.mktime(til.timetuple()))
 
@@ -292,6 +289,7 @@ class HelperClient(RestClient):
             q.put((since_ts, til_ts))
             last_update = time.time()
 
+            # TODO this logic seems to work somewhat "coincidentally". probably be more explicit about why you need the time check but also the try/except
             # only exit if queue is empty AND all threads are available
             while not (q.empty() and time.time() - last_update > 15):
                 try:
@@ -300,6 +298,7 @@ class HelperClient(RestClient):
                 except queue.Empty:
                     break
 
+        # TODO ugly
         data = [y[1] for y in sorted([x for x in cum_ticks.items()], key=lambda kv: kv[0])]
         dfs = []
         for tick in data:
