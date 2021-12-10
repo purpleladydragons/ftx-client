@@ -264,7 +264,7 @@ class HelperClient(RestClient):
 
     def get_historical_ticks_threaded(self, market, since, til):
         cum_ticks = {}
-        max_threads = 30
+        max_threads = 80
         last_update = None
 
         def _thread_action(window_start, window_end):
