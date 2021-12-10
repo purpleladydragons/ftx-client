@@ -176,6 +176,39 @@ class HelperClient(RestClient):
     def __init__(self, key, secret, platform='us'):
         super().__init__(key, secret, platform)
 
+    def _get_prices_helper_threaded(self, coin, since_date, window_size_secs, verbose=False):
+        tildate = datetime.datetime.now()
+        prices_til = int(time.mktime(tildate.timetuple()))
+        since = int(time.mktime(since_date.timetuple()))
+        prices_cum = []
+
+        # (end - start) / size = # of points needed
+        # #pts / 10k = # requests
+
+        max_points_per_request = 1500
+
+        points_needed = (prices_til - since) / window_size_secs
+        print(f'Making {max(1, points_needed / max_points_per_request)} requests')
+        now_secs = tildate.timestamp()
+
+        prices_cum = {}
+        def download_range(range):
+            start, end = range
+            prices = self.get_historical_prices(f'{coin}', start, end, window_size_secs)
+            prices_cum[start] = prices
+
+
+        ranges = []
+        for start in range(since, prices_til, window_size_secs * max_points_per_request):
+            end = min(now_secs, start + window_size_secs * max_points_per_request)
+            ranges.append((start, end))
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+            executor.map(download_range, ranges)
+
+        sorted_prices = [y[1] for y in sorted(list(prices_cum.items()), key=lambda x: x[0])]
+        return sorted_prices
+
     def _get_prices_helper(self, coin, since_date, window_size_secs, verbose=False):
         tildate = datetime.datetime.now()
         prices_til = int(time.mktime(tildate.timetuple()))
@@ -217,7 +250,15 @@ class HelperClient(RestClient):
         return pdf
 
     def get_prices(self, coin, since_date, window_size_secs, verbose=False):
-        prices = self._get_prices_helper(coin, since_date, window_size_secs, verbose)
+        """
+
+        :param coin:
+        :param since_date: DateTime
+        :param window_size_secs:
+        :param verbose:
+        :return:
+        """
+        prices = self._get_prices_helper_threaded(coin, since_date, window_size_secs, verbose)
         return self._combine_prices_into_df(prices)
 
     # TODO fking carbon copy of get_historical_ticks so DRY it
