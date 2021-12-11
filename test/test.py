@@ -18,7 +18,7 @@ def test_ticks_threaded():
     start = dateutil.parser.parse('2021-12-01 00:00:00+00:00')
     end = start + dt.timedelta(seconds=60 * 60)
 
-    df = client.get_historical_ticks_threaded('BTC-PERP', since=start, til=end)
+    df, errors = client.get_historical_ticks_threaded('BTC-PERP', since=start, til=end)
 
     with open(dirname + '/fixtures/ticks.csv', 'r') as f:
         # We have to rename the column since the read_csv isn't smart enough to index the column automatically

@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import concurrent
 import logging
 from requests import Request, Session
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 JsonResponse = Dict[str, Any]
 
@@ -298,7 +298,7 @@ class HelperClient(RestClient):
         prices = self._get_prices_helper_threaded(market, since_date, end_date, window_size_secs)
         return self._combine_prices_into_df(prices)
 
-    def get_historical_ticks_threaded(self, market, since, til):
+    def get_historical_ticks_threaded(self, market, since, til) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
         """
         Request tick data in parallel. Since we can't know ahead of time how many ticks occur in a given window,
         we use a thread pool and a queue to add and remove tasks.
@@ -316,6 +316,7 @@ class HelperClient(RestClient):
         cum_ticks = {}
         errors = {}
         max_threads = 80
+        last_update = None
 
         def _thread_action(window_start: int, window_end: int) -> None:
             """
@@ -327,6 +328,9 @@ class HelperClient(RestClient):
             :param window_end: end of the window in seconds-based timestamp
             :return: None
             """
+            # we want to keep track of the last time a thread spawned so we know when to give up
+            nonlocal last_update
+            last_update = time.time()
             resp = self.get_ticks(market, start=window_start, end=window_end)
             # record error if failed response
             if not resp['success']:
@@ -352,7 +356,10 @@ class HelperClient(RestClient):
             q.put((since_ts, til_ts))
             last_update = time.time()
 
-            # TODO this exit logic should be improved
+            # TODO this exit logic should be improved. i couldn't figure out how to reliably determine if the threads were doing real work or not
+            # it's possible that the threads can consume all the tasks faster than they can put new tasks on the queue,
+            # so to prevent the main thread from exiting prematurely based on `q.empty()`, we also check that there
+            # haven't been any recent updates to the threads' progress
             while not (q.empty() and time.time() - last_update > 15):
                 try:
                     item = q.get(timeout=5)
@@ -363,7 +370,8 @@ class HelperClient(RestClient):
         # the threads can save the data in any order, so we sort the results by the start of their window
         # and then take the data from each
         data = [y[1] for y in sorted([x for x in cum_ticks.items()], key=lambda kv: kv[0])]
-        return self.consolidate_data(data)
+
+        return self.consolidate_data(data), errors
 
     def consolidate_data(self, data: List[pd.DataFrame]) -> Optional[pd.DataFrame]:
         """
