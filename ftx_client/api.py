@@ -14,10 +14,10 @@ JsonResponse = Dict[str, Any]
 
 
 class RestClient:
-    us_api_url = 'https://ftx.us/api'
-    com_api_url = 'https://ftx.com/api'
+    us_api_url = "https://ftx.us/api"
+    com_api_url = "https://ftx.com/api"
 
-    def __init__(self, key, secret, platform='us'):
+    def __init__(self, key, secret, platform="us"):
         """
         Create a client instance. FTX has two platforms with essentially identical APIs.
         Some queries don't make sense for the US platform (like funding rates), but the syntax
@@ -28,7 +28,7 @@ class RestClient:
         :param platform: 'us' or 'com' to indicate whether you want ftx.us or ftx.com, respectively
         """
 
-        if platform == 'us':
+        if platform == "us":
             self.api_url = RestClient.us_api_url
         else:
             self.api_url = RestClient.com_api_url
@@ -47,17 +47,21 @@ class RestClient:
         :return:
         """
         ts = int(time.time() * 1000)
-        request = Request(verb, f'{self.api_url}/{endpoint}', params=params, json=json_body)
+        request = Request(
+            verb, f"{self.api_url}/{endpoint}", params=params, json=json_body
+        )
         prepared = request.prepare()
-        signature_payload = f'{ts}{prepared.method}{prepared.path_url}'.encode()
+        signature_payload = f"{ts}{prepared.method}{prepared.path_url}".encode()
         if prepared.body:
             signature_payload += prepared.body
 
-        signature = hmac.new(self._api_secret.encode(), signature_payload, 'sha256').hexdigest()
+        signature = hmac.new(
+            self._api_secret.encode(), signature_payload, "sha256"
+        ).hexdigest()
 
-        prepared.headers['FTXUS-KEY'] = self._api_key
-        prepared.headers['FTXUS-SIGN'] = signature
-        prepared.headers['FTXUS-TS'] = str(ts)
+        prepared.headers["FTXUS-KEY"] = self._api_key
+        prepared.headers["FTXUS-SIGN"] = signature
+        prepared.headers["FTXUS-TS"] = str(ts)
 
         return prepared
 
@@ -77,7 +81,7 @@ class RestClient:
         return data
 
     def get_markets(self) -> JsonResponse:
-        req = self._make_request('GET', 'markets')
+        req = self._make_request("GET", "markets")
         return self._send_req(req)
 
     def get_futures_stats(self, market) -> JsonResponse:
@@ -87,7 +91,7 @@ class RestClient:
         :param market: relevant market / future, e.g BTC-PERP
         :return:
         """
-        req = self._make_request('GET', f'futures/{market}/stats')
+        req = self._make_request("GET", f"futures/{market}/stats")
         resp = self._send_req(req)
         return resp
 
@@ -102,15 +106,15 @@ class RestClient:
         :param market: market/future you're interested in, e.g BTC-PERP
         :param start: start of the historical window you're interested in, in seconds-based timestamp
         :param end: end of the window, in seconds-based timestamp
-        :return: 
+        :return:
         """
-        endpoint = f'funding_rates'
+        endpoint = f"funding_rates"
         params = {
-            'future': market,
-            'start_time': start,
-            'end_time': end,
+            "future": market,
+            "start_time": start,
+            "end_time": end,
         }
-        req = self._make_request('GET', endpoint, params)
+        req = self._make_request("GET", endpoint, params)
         resp = self._send_req(req)
         return resp
 
@@ -127,13 +131,9 @@ class RestClient:
         :param resolution: how to sample the given window, in seconds, e.g 60 to get 1 minute candles
         :return: result with DataFrame-compatible table of OHLCV data
         """
-        params = {
-            'start_time': start,
-            'end_time': end,
-            'resolution': resolution
-        }
-        endpoint = f'markets/{market}/candles'
-        req = self._make_request('GET', endpoint, params)
+        params = {"start_time": start, "end_time": end, "resolution": resolution}
+        endpoint = f"markets/{market}/candles"
+        req = self._make_request("GET", endpoint, params)
         resp = self._send_req(req)
         return resp
 
@@ -146,13 +146,9 @@ class RestClient:
         :param end: end of window in seconds-based timestamp
         :return: result with DataFrame-compatible table of tick data
         """
-        params = {
-            'start_time': start,
-            'end_time': end,
-            'limit': 100
-        }
-        endpoint = f'markets/{market}/trades'
-        req = self._make_request('GET', endpoint, params)
+        params = {"start_time": start, "end_time": end, "limit": 100}
+        endpoint = f"markets/{market}/trades"
+        req = self._make_request("GET", endpoint, params)
         resp = self._send_req(req)
         return resp
 
@@ -166,17 +162,17 @@ class RestClient:
         :return: result of dict with 'bids' and 'asks' lists representing the current orderbook
         """
 
-        req = self._make_request('GET', f'markets/{market}/orderbook')
+        req = self._make_request("GET", f"markets/{market}/orderbook")
         resp = self._send_req(req)
         return resp
 
     def get_order_status(self, order_id) -> JsonResponse:
-        req = self._make_request('GET', f'orders/{order_id}')
+        req = self._make_request("GET", f"orders/{order_id}")
         resp = self._send_req(req)
         return resp
 
     def get_balances(self) -> JsonResponse:
-        req = self._make_request('GET', 'wallet/balances')
+        req = self._make_request("GET", "wallet/balances")
         resp = self._send_req(req)
         return resp
 
@@ -194,29 +190,26 @@ class RestClient:
         :return: result indicating order placement
         """
         try:
-            market = kwargs['market']
-            side = kwargs['side']
-            price = kwargs['price']
-            typ = kwargs['type']
-            size = kwargs['size']
-            ioc = kwargs.get('ioc', False)
+            market = kwargs["market"]
+            side = kwargs["side"]
+            price = kwargs["price"]
+            typ = kwargs["type"]
+            size = kwargs["size"]
+            ioc = kwargs.get("ioc", False)
         except KeyError as e:
-            logging.error('Missing required param to send order', e)
+            logging.error("Missing required param to send order", e)
             raise e
         json_body = {
-            'market': market,
-            'side': side,
-            'price': price,
-            'size': size,
-            'type': typ,
-            'ioc': ioc,
-            'clientId': None
+            "market": market,
+            "side": side,
+            "price": price,
+            "size": size,
+            "type": typ,
+            "ioc": ioc,
+            "clientId": None,
         }
         req = self._make_request(
-            verb='POST',
-            endpoint='orders',
-            params={},
-            json_body=json_body
+            verb="POST", endpoint="orders", params={}, json_body=json_body
         )
         resp = self._send_req(req)
         return resp
@@ -227,7 +220,7 @@ class HelperClient(RestClient):
     Helper methods to build upon the base client
     """
 
-    def __init__(self, key, secret, platform='us'):
+    def __init__(self, key, secret, platform="us"):
         """
         :param key: API key
         :param secret: API secret
@@ -235,7 +228,13 @@ class HelperClient(RestClient):
         """
         super().__init__(key, secret, platform)
 
-    def _get_prices_helper_threaded(self, market: str, since_date: datetime, end_date: datetime, window_size_secs: int):
+    def _get_prices_helper_threaded(
+        self,
+        market: str,
+        since_date: datetime,
+        end_date: datetime,
+        window_size_secs: int,
+    ):
         """
         Download price candles in parallel using threads
 
@@ -255,40 +254,51 @@ class HelperClient(RestClient):
 
         # We can know ahead of time how many requests we need to make
         points_needed = (prices_til - since) / window_size_secs
-        logging.info(f'Making {max(1, (points_needed // max_points_per_request)) + 1} requests')
+        logging.info(
+            f"Making {max(1, (points_needed // max_points_per_request)) + 1} requests"
+        )
 
         prices_cum = {}
 
         def download_range(range):
             start, end = range
             resp = self.get_prices(market, start, end, window_size_secs)
-            if resp['success']:
+            if resp["success"]:
                 prices_cum[start] = resp
             else:
-                errors[start] = resp['error']
+                errors[start] = resp["error"]
 
         ranges = []
-        for start in range(since, prices_til, window_size_secs * max_points_per_request):
+        for start in range(
+            since, prices_til, window_size_secs * max_points_per_request
+        ):
             end = min(prices_til, start + window_size_secs * max_points_per_request)
             ranges.append((start, end))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
             executor.map(download_range, ranges)
 
-        sorted_prices = [y[1] for y in sorted(list(prices_cum.items()), key=lambda x: x[0])]
+        sorted_prices = [
+            y[1] for y in sorted(list(prices_cum.items()), key=lambda x: x[0])
+        ]
         return sorted_prices, errors
 
     def _combine_prices_into_df(self, prices_cum):
         pdfs = []
         for prices in prices_cum:
-            pdf = pd.DataFrame(prices['result'])
+            pdf = pd.DataFrame(prices["result"])
             pdfs.append(pdf)
         pdf = pd.concat(pdfs)
-        pdf.index = pd.to_datetime(pdf['startTime'].sort_values())
+        pdf.index = pd.to_datetime(pdf["startTime"].sort_values())
         return pdf
 
-    def get_historical_prices(self, market: str, since_date: datetime, end_date: datetime,
-                              window_size_secs: int) -> Tuple[Optional[pd.DataFrame], Dict[int, str]] :
+    def get_historical_prices(
+        self,
+        market: str,
+        since_date: datetime,
+        end_date: datetime,
+        window_size_secs: int,
+    ) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
         """
         Get price candles for a given market over a given window of time. This function handles pagination
 
@@ -298,10 +308,14 @@ class HelperClient(RestClient):
         :param window_size_secs: candle size in seconds, e.g 60 = 1 minute
         :return: DataFrame containing OHLCV data
         """
-        prices, errors = self._get_prices_helper_threaded(market, since_date, end_date, window_size_secs)
+        prices, errors = self._get_prices_helper_threaded(
+            market, since_date, end_date, window_size_secs
+        )
         return self._combine_prices_into_df(prices), errors
 
-    def get_historical_ticks_threaded(self, market, since_date: datetime, end_date: datetime) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
+    def get_historical_ticks_threaded(
+        self, market, since_date: datetime, end_date: datetime
+    ) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
         """
         Request tick data in parallel. Since we can't know ahead of time how many ticks occur in a given window,
         we use a thread pool and a queue to add and remove tasks.
@@ -336,11 +350,11 @@ class HelperClient(RestClient):
             last_update = time.time()
             resp = self.get_ticks(market, start=window_start, end=window_end)
             # record error if failed response
-            if not resp['success']:
-                errors[window_start] = resp['error']
+            if not resp["success"]:
+                errors[window_start] = resp["error"]
                 return
 
-            ticks = resp['result']
+            ticks = resp["result"]
             # TODO would it be more efficient to just save the first 100 in and then put the last tick's time in as a new task? rather than repeat work for both?
             # if too many results, split the window and put them back on the queue
             if len(ticks) >= 100 and window_end - window_start > 1:
@@ -372,7 +386,9 @@ class HelperClient(RestClient):
 
         # the threads can save the data in any order, so we sort the results by the start of their window
         # and then take the data from each
-        data = [y[1] for y in sorted([x for x in cum_ticks.items()], key=lambda kv: kv[0])]
+        data = [
+            y[1] for y in sorted([x for x in cum_ticks.items()], key=lambda kv: kv[0])
+        ]
 
         return self.consolidate_data(data), errors
 
@@ -393,13 +409,14 @@ class HelperClient(RestClient):
             dfs.append(df.iloc[::-1])
         if len(dfs) > 0:
             df = pd.concat(dfs)
-            df.index = pd.to_datetime(df['time'])
+            df.index = pd.to_datetime(df["time"])
             return df
 
         return None
 
-    def _get_paginated_results(self, market: str, endpoint_func, start: datetime, end: datetime) -> Tuple[Optional[
-        pd.DataFrame], Dict[int, str]]:
+    def _get_paginated_results(
+        self, market: str, endpoint_func, start: datetime, end: datetime
+    ) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
         """
         Helper function to download paginated results for a given endpoint
 
@@ -415,7 +432,9 @@ class HelperClient(RestClient):
         til_ts = int(time.mktime(end.timetuple()))
 
         cum_resps = []  # we'll accumulate the paginated results in this array
-        errors = {}  # any errors will be stored here, keyed by the failed window's start-time
+        errors = (
+            {}
+        )  # any errors will be stored here, keyed by the failed window's start-time
 
         max_data_size = 100  # FTX supports up to 100 datapoints per page
         max_window_size = 60 * 60 * 24
@@ -428,19 +447,23 @@ class HelperClient(RestClient):
         # We slide the window forward through time. If we grab too many datapoints, then we halve the window size
         # repeatedly until it's no longer too large. Each time we successfully download a page, we double the window size
         while window_start < til_ts:
-            start_hum = datetime.datetime.utcfromtimestamp(window_start).strftime('%Y-%m-%d %H:%M:%S')
-            end_hum = datetime.datetime.utcfromtimestamp(window_end).strftime('%Y-%m-%d %H:%M:%S')
-            logging.info('Collecting funding rates from', start_hum, 'to', end_hum)
+            start_hum = datetime.datetime.utcfromtimestamp(window_start).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            end_hum = datetime.datetime.utcfromtimestamp(window_end).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            logging.info("Collecting funding rates from", start_hum, "to", end_hum)
 
             resp = endpoint_func(market, start=window_start, end=window_end)
-            if not resp['success']:
-                errors[window_start] = resp['error']
+            if not resp["success"]:
+                errors[window_start] = resp["error"]
                 continue
 
-            data = resp['result']
+            data = resp["result"]
 
             if len(data) >= max_data_size and window_size > 1:
-                logging.info('too many results', len(data))
+                logging.info("too many results", len(data))
                 window_size = max(1, window_size / 2)
                 window_end = window_start + window_size
                 continue
@@ -452,8 +475,9 @@ class HelperClient(RestClient):
 
         return self.consolidate_data(cum_resps), errors
 
-    def get_historical_funding_rates(self, market: str, since_date: datetime, end_date: datetime) -> Tuple[Optional[
-        pd.DataFrame], Dict[int, str]]:
+    def get_historical_funding_rates(
+        self, market: str, since_date: datetime, end_date: datetime
+    ) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
         """
         Get all the hourly funding rates for a given market in a given window of time.
 
@@ -462,10 +486,13 @@ class HelperClient(RestClient):
         :param end_date:
         :return:
         """
-        return self._get_paginated_results(market, self.get_funding_rates, since_date, end_date)
+        return self._get_paginated_results(
+            market, self.get_funding_rates, since_date, end_date
+        )
 
-    def get_historical_ticks(self, market: str, since_date: datetime, end_date: datetime) -> Tuple[Optional[
-        pd.DataFrame], Dict[int, str]]:
+    def get_historical_ticks(
+        self, market: str, since_date: datetime, end_date: datetime
+    ) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
         """
         Get all the ticks for a given market in a given window of time.
         Note, this is a serial function. The pages will be downloaded in sequence
