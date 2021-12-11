@@ -255,8 +255,6 @@ class HelperClient(RestClient):
         # We can know ahead of time how many requests we need to make
         points_needed = (prices_til - since) / window_size_secs
         logging.info(f'Making {max(1, (points_needed // max_points_per_request)) + 1} requests')
-        # TODO do we really need this? how is this different htan prices_til?
-        now_secs = end_date.timestamp()
 
         prices_cum = {}
 
@@ -267,7 +265,7 @@ class HelperClient(RestClient):
 
         ranges = []
         for start in range(since, prices_til, window_size_secs * max_points_per_request):
-            end = min(now_secs, start + window_size_secs * max_points_per_request)
+            end = min(prices_til, start + window_size_secs * max_points_per_request)
             ranges.append((start, end))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
@@ -450,28 +448,28 @@ class HelperClient(RestClient):
 
         return self.consolidate_data(cum_resps), errors
 
-    def get_historical_funding_rates(self, market: str, since: datetime, til: datetime) -> Optional[
-        pd.DataFrame]:
+    def get_historical_funding_rates(self, market: str, since_date: datetime, end_date: datetime) -> Tuple[Optional[
+        pd.DataFrame], Dict[int, str]]:
         """
         Get all the hourly funding rates for a given market in a given window of time.
 
         :param market: market symbol, e.g BTC/USD
-        :param since:
-        :param til:
+        :param since_date:
+        :param end_date:
         :return:
         """
-        return self._get_paginated_results(market, self.get_funding_rates, since, til)
+        return self._get_paginated_results(market, self.get_funding_rates, since_date, end_date)
 
-    def get_historical_ticks(self, market: str, since: datetime, til: datetime) -> Optional[
-        pd.DataFrame]:
+    def get_historical_ticks(self, market: str, since_date: datetime, end_date: datetime) -> Tuple[Optional[
+        pd.DataFrame], Dict[int, str]]:
         """
         Get all the ticks for a given market in a given window of time.
         Note, this is a serial function. The pages will be downloaded in sequence
         For a faster download, use :func:`HelperClient.get_historical_ticks_threaded`
 
         :param market: market symbol, e.g BTC/USD
-        :param since:
-        :param til:
+        :param since_date:
+        :param end_date:
         :return:
         """
-        return self._get_paginated_results(market, self.get_ticks, since, til)
+        return self._get_paginated_results(market, self.get_ticks, since_date, end_date)
