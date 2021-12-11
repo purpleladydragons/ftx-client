@@ -8,9 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 import concurrent
 import logging
 from requests import Request, Session
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 JsonResponse = Dict[str, Any]
+
 
 class RestClient:
     us_api_url = 'https://ftx.us/api'
@@ -225,6 +226,7 @@ class HelperClient(RestClient):
     """
     Helper methods to build upon the base client
     """
+
     def __init__(self, key, secret, platform='us'):
         """
         :param key: API key
@@ -283,7 +285,8 @@ class HelperClient(RestClient):
         pdf.index = pd.to_datetime(pdf['startTime'].sort_values())
         return pdf
 
-    def get_historical_prices(self, market: str, since_date: datetime, end_date: datetime, window_size_secs: int) -> pd.DataFrame:
+    def get_historical_prices(self, market: str, since_date: datetime, end_date: datetime,
+                              window_size_secs: int) -> pd.DataFrame:
         """
         Get price candles for a given market over a given window of time. This function handles pagination
 
@@ -308,12 +311,29 @@ class HelperClient(RestClient):
         :param til:
         :return:
         """
+
+        # every tick window response will be stored in this dictionary, keyed by the start-time of the window
         cum_ticks = {}
+        errors = {}
         max_threads = 80
 
-        def _thread_action(window_start, window_end):
-            # TODO some error handling around missing 'result' key
-            ticks = self.get_ticks(market, start=window_start, end=window_end)['result']
+        def _thread_action(window_start: int, window_end: int) -> None:
+            """
+            Download ticks for the given window. If the result is too large,
+            split the window and put both new tasks on the task queue.
+            Otherwise, store the data.
+
+            :param window_start: start of the window in seconds-based timestamp
+            :param window_end: end of the window in seconds-based timestamp
+            :return: None
+            """
+            resp = self.get_ticks(market, start=window_start, end=window_end)
+            # record error if failed response
+            if not resp['success']:
+                errors[window_start] = resp['error']
+                return
+
+            ticks = resp['result']
             # TODO would it be more efficient to just save the first 100 in and then put the last tick's time in as a new task? rather than repeat work for both?
             # if too many results, split the window and put them back on the queue
             if len(ticks) >= 100 and window_end - window_start > 1:
@@ -340,11 +360,23 @@ class HelperClient(RestClient):
                 except queue.Empty:
                     break
 
-        # TODO ugly
+        # the threads can save the data in any order, so we sort the results by the start of their window
+        # and then take the data from each
         data = [y[1] for y in sorted([x for x in cum_ticks.items()], key=lambda kv: kv[0])]
+        return self.consolidate_data(data)
+
+    def consolidate_data(self, data: List[pd.DataFrame]) -> Optional[pd.DataFrame]:
+        """
+        Given a list of individual page responses, consolidate them into one combined dataframe
+
+        If there are no dataframes, return None
+
+        :param data: list of dataframes
+        :return: the combined dataframe, or None if there are no dataframes to combine
+        """
         dfs = []
-        for tick in data:
-            df = pd.DataFrame(tick)
+        for page in data:
+            df = pd.DataFrame(page)
             # each request orders by time desc, so you get like: 5-4-3-2-1-9-8-7-6
             # so reverse each df first before appending
             dfs.append(df.iloc[::-1])
@@ -352,6 +384,8 @@ class HelperClient(RestClient):
             df = pd.concat(dfs)
             df.index = pd.to_datetime(df['time'])
             return df
+
+        return None
 
     def _get_paginated_results(self, market: str, endpoint_func, start: datetime, end: datetime) -> Optional[
         pd.DataFrame]:
@@ -399,17 +433,7 @@ class HelperClient(RestClient):
                 window_start = window_end
                 window_end = window_start + window_size
 
-        dfs = []
-        for tick in cum_ticks:
-            df = pd.DataFrame(tick)
-            # the page results are in ascending order, but the points in each page are ordered by descending time
-            # so we reverse each df first before appending
-            dfs.append(df.iloc[::-1])
-        if len(dfs) > 0:
-            df = pd.concat(dfs)
-            df.index = pd.to_datetime(df['time'])
-            return df
-        return None
+        return self.consolidate_data(cum_ticks)
 
     def get_historical_funding_rates(self, market: str, since: datetime, til: datetime) -> Optional[
         pd.DataFrame]:
