@@ -175,6 +175,15 @@ class HelperClient(RestClient):
         super().__init__(key, secret, platform)
 
     def _get_prices_helper_threaded(self, coin, since_date, window_size_secs, verbose=False):
+        """
+        Download price candles in parallel using threads
+
+        :param coin:
+        :param since_date:
+        :param window_size_secs:
+        :param verbose:
+        :return:
+        """
         tildate = datetime.datetime.now()
         prices_til = int(time.mktime(tildate.timetuple()))
         since = int(time.mktime(since_date.timetuple()))
@@ -193,7 +202,7 @@ class HelperClient(RestClient):
 
         def download_range(range):
             start, end = range
-            prices = self.get_historical_prices(f'{coin}', start, end, window_size_secs)
+            prices = self.get_historical_prices(coin, start, end, window_size_secs)
             prices_cum[start] = prices
 
         ranges = []
