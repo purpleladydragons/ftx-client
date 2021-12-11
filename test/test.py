@@ -18,7 +18,7 @@ def test_ticks_threaded():
     start = dateutil.parser.parse('2021-12-01 00:00:00+00:00')
     end = start + dt.timedelta(seconds=60 * 60)
 
-    df, errors = client.get_historical_ticks_threaded('BTC-PERP', since=start, til=end)
+    df, errors = client.get_historical_ticks_threaded('BTC-PERP', since_date=start, end_date=end)
 
     with open(dirname + '/fixtures/ticks.csv', 'r') as f:
         # We have to rename the column since the read_csv isn't smart enough to index the column automatically
@@ -30,8 +30,9 @@ def test_prices_threaded():
     client = ftx_client.api.HelperClient(key=os.environ['API_KEY'], secret=os.environ['API_SECRET'], platform='com')
 
     start = dt.datetime.now() - dt.timedelta(days=5)
+    end = dt.datetime.now()
     then1 = time.time()
-    df = client.get_prices('SOL-PERP', since_date=start, window_size_secs=60)
+    df = client.get_historical_prices('SOL-PERP', since_date=start, end_date=end, window_size_secs=60)
     print(time.time() - then1)
     print(len(df))
 

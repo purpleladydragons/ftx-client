@@ -292,13 +292,14 @@ class HelperClient(RestClient):
 
         :param market: market you care about, e.g "BTC/USD"
         :param since_date: start time
+        :param end_date: end time
         :param window_size_secs: candle size in seconds, e.g 60 = 1 minute
         :return: DataFrame containing OHLCV data
         """
         prices = self._get_prices_helper_threaded(market, since_date, end_date, window_size_secs)
         return self._combine_prices_into_df(prices)
 
-    def get_historical_ticks_threaded(self, market, since, til) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
+    def get_historical_ticks_threaded(self, market, since_date: datetime, end_date: datetime) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
         """
         Request tick data in parallel. Since we can't know ahead of time how many ticks occur in a given window,
         we use a thread pool and a queue to add and remove tasks.
@@ -307,8 +308,8 @@ class HelperClient(RestClient):
         then we can only retrieve the first 100.
 
         :param market:
-        :param since:
-        :param til:
+        :param since_date:
+        :param end_date:
         :return:
         """
 
@@ -347,13 +348,13 @@ class HelperClient(RestClient):
             else:
                 cum_ticks[window_start] = ticks
 
-        since_ts = int(time.mktime(since.timetuple()))
-        til_ts = int(time.mktime(til.timetuple()))
+        since_ts = int(time.mktime(since_date.timetuple()))
+        end_ts = int(time.mktime(end_date.timetuple()))
 
         with ThreadPoolExecutor(max_workers=max_threads) as executor:
             q = queue.Queue(1000)
 
-            q.put((since_ts, til_ts))
+            q.put((since_ts, end_ts))
             last_update = time.time()
 
             # TODO this exit logic should be improved. i couldn't figure out how to reliably determine if the threads were doing real work or not
