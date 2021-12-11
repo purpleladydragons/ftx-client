@@ -233,21 +233,18 @@ class HelperClient(RestClient):
         """
         super().__init__(key, secret, platform)
 
-    # TODO specify end time
-    # TODO change coin to market
-    def _get_prices_helper_threaded(self, market: str, since_date: datetime, window_size_secs: int, verbose=False):
+    def _get_prices_helper_threaded(self, market: str, since_date: datetime, end_date: datetime, window_size_secs: int):
         """
         Download price candles in parallel using threads
 
         :param market: the market you care about, e.g "BTC/USD"
         :param since_date: start of window
+        :param end_date: end of window
         :param window_size_secs: size of the candle in seconds, e.g 60 = 1 minute
-        :param verbose: flag to enable verbose logging
         :return: list of the json responses
         """
-        tildate = datetime.datetime.now()
-        prices_til = int(time.mktime(tildate.timetuple()))
         since = int(time.mktime(since_date.timetuple()))
+        prices_til = int(time.mktime(end_date.timetuple()))
         prices_cum = []
 
         # FTX supports up to 1500 candles per page
@@ -256,7 +253,8 @@ class HelperClient(RestClient):
         # We can know ahead of time how many requests we need to make
         points_needed = (prices_til - since) / window_size_secs
         logging.info(f'Making {max(1, (points_needed // max_points_per_request)) + 1} requests')
-        now_secs = tildate.timestamp()
+        # TODO do we really need this? how is this different htan prices_til?
+        now_secs = end_date.timestamp()
 
         prices_cum = {}
 
@@ -285,7 +283,7 @@ class HelperClient(RestClient):
         pdf.index = pd.to_datetime(pdf['startTime'].sort_values())
         return pdf
 
-    def get_historical_prices(self, market: str, since_date: datetime, window_size_secs: int, verbose=False) -> pd.DataFrame:
+    def get_historical_prices(self, market: str, since_date: datetime, end_date: datetime, window_size_secs: int, verbose=False) -> pd.DataFrame:
         """
         Get price candles for a given market over a given window of time. This function handles pagination
 
@@ -295,7 +293,7 @@ class HelperClient(RestClient):
         :param verbose: flag to toggle verbose logging
         :return: DataFrame containing OHLCV data
         """
-        prices = self._get_prices_helper_threaded(market, since_date, window_size_secs, verbose)
+        prices = self._get_prices_helper_threaded(market, since_date, end_date, window_size_secs, verbose)
         return self._combine_prices_into_df(prices)
 
     def get_historical_ticks_threaded(self, market, since, til):
@@ -433,6 +431,8 @@ class HelperClient(RestClient):
         pd.DataFrame]:
         """
         Get all the ticks for a given market in a given window of time.
+        Note, this is a serial function. The pages will be downloaded in sequence
+        For a faster download, use :func:`HelperClient.get_historical_ticks_threaded`
 
         :param market: market symbol, e.g BTC/USD
         :param since:
