@@ -283,17 +283,16 @@ class HelperClient(RestClient):
         pdf.index = pd.to_datetime(pdf['startTime'].sort_values())
         return pdf
 
-    def get_historical_prices(self, market: str, since_date: datetime, end_date: datetime, window_size_secs: int, verbose=False) -> pd.DataFrame:
+    def get_historical_prices(self, market: str, since_date: datetime, end_date: datetime, window_size_secs: int) -> pd.DataFrame:
         """
         Get price candles for a given market over a given window of time. This function handles pagination
 
         :param market: market you care about, e.g "BTC/USD"
         :param since_date: start time
         :param window_size_secs: candle size in seconds, e.g 60 = 1 minute
-        :param verbose: flag to toggle verbose logging
         :return: DataFrame containing OHLCV data
         """
-        prices = self._get_prices_helper_threaded(market, since_date, end_date, window_size_secs, verbose)
+        prices = self._get_prices_helper_threaded(market, since_date, end_date, window_size_secs)
         return self._combine_prices_into_df(prices)
 
     def get_historical_ticks_threaded(self, market, since, til):
@@ -354,7 +353,7 @@ class HelperClient(RestClient):
             df.index = pd.to_datetime(df['time'])
             return df
 
-    def _get_paginated_results(self, market: str, endpoint_func, start: datetime, end: datetime, verbose) -> Optional[
+    def _get_paginated_results(self, market: str, endpoint_func, start: datetime, end: datetime) -> Optional[
         pd.DataFrame]:
         """
         Helper function to download paginated results for a given endpoint
@@ -384,14 +383,13 @@ class HelperClient(RestClient):
         # We slide the window forward through time. If we grab too many datapoints, then we halve the window size
         # repeatedly until it's no longer too large. Each time we successfully download a page, we double the window size
         while window_start < til_ts:
-            if verbose:
-                start_hum = datetime.datetime.utcfromtimestamp(window_start).strftime('%Y-%m-%d %H:%M:%S')
-                end_hum = datetime.datetime.utcfromtimestamp(window_end).strftime('%Y-%m-%d %H:%M:%S')
-                logging.info('Collecting funding rates from', start_hum, 'to', end_hum)
+            start_hum = datetime.datetime.utcfromtimestamp(window_start).strftime('%Y-%m-%d %H:%M:%S')
+            end_hum = datetime.datetime.utcfromtimestamp(window_end).strftime('%Y-%m-%d %H:%M:%S')
+            logging.info('Collecting funding rates from', start_hum, 'to', end_hum)
+
             ticks = endpoint_func(market, start=window_start, end=window_end)
             if len(ticks['result']) >= max_data_size and window_size > 1:
-                if verbose:
-                    logging.info('too many results', len(ticks['result']))
+                logging.info('too many results', len(ticks['result']))
                 window_size = max(1, window_size / 2)
                 window_end = window_start + window_size
                 continue
@@ -404,8 +402,7 @@ class HelperClient(RestClient):
         dfs = []
         for tick in cum_ticks:
             df = pd.DataFrame(tick)
-            # the page results are in ascending order
-            # but the points in each page are ordered by descending time
+            # the page results are in ascending order, but the points in each page are ordered by descending time
             # so we reverse each df first before appending
             dfs.append(df.iloc[::-1])
         if len(dfs) > 0:
@@ -414,7 +411,7 @@ class HelperClient(RestClient):
             return df
         return None
 
-    def get_historical_funding_rates(self, market: str, since: datetime, til: datetime, verbose=False) -> Optional[
+    def get_historical_funding_rates(self, market: str, since: datetime, til: datetime) -> Optional[
         pd.DataFrame]:
         """
         Get all the hourly funding rates for a given market in a given window of time.
@@ -422,12 +419,11 @@ class HelperClient(RestClient):
         :param market: market symbol, e.g BTC/USD
         :param since:
         :param til:
-        :param verbose:
         :return:
         """
-        return self._get_paginated_results(market, self.get_funding_rates, since, til, verbose)
+        return self._get_paginated_results(market, self.get_funding_rates, since, til)
 
-    def get_historical_ticks(self, market: str, since: datetime, til: datetime, verbose=False) -> Optional[
+    def get_historical_ticks(self, market: str, since: datetime, til: datetime) -> Optional[
         pd.DataFrame]:
         """
         Get all the ticks for a given market in a given window of time.
@@ -437,7 +433,6 @@ class HelperClient(RestClient):
         :param market: market symbol, e.g BTC/USD
         :param since:
         :param til:
-        :param verbose:
         :return:
         """
-        return self._get_paginated_results(market, self.get_ticks, since, til, verbose)
+        return self._get_paginated_results(market, self.get_ticks, since, til)
