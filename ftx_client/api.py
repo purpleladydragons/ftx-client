@@ -276,33 +276,6 @@ class HelperClient(RestClient):
         sorted_prices = [y[1] for y in sorted(list(prices_cum.items()), key=lambda x: x[0])]
         return sorted_prices
 
-    def _get_prices_helper(self, market, since_date, window_size_secs, verbose=False):
-        tildate = datetime.datetime.now()
-        prices_til = int(time.mktime(tildate.timetuple()))
-        since = int(time.mktime(since_date.timetuple()))
-        prices_cum = []
-
-        max_points_per_request = 1500
-
-        points_needed = (prices_til - since) / window_size_secs
-        logging.info(f'Making {max(1, points_needed / max_points_per_request)} requests')
-        now_secs = tildate.timestamp()
-        for start in range(since, prices_til, window_size_secs * max_points_per_request):
-            end = min(now_secs, start + window_size_secs * max_points_per_request)
-            if verbose:
-                start_hum = datetime.datetime.utcfromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S')
-                end_hum = datetime.datetime.utcfromtimestamp(end).strftime('%Y-%m-%d %H:%M:%S')
-                logging.info('looping', start_hum, 'to', end_hum)
-            prices = self.get_prices(market, start, end, window_size_secs)
-            if verbose:
-                if 'result' in prices:
-                    logging.info('fetched', len(prices['result']), 'results')
-                else:
-                    logging.info('error?', prices)
-            prices_cum.append(prices)
-
-        return prices_cum
-
     def _combine_prices_into_df(self, prices_cum):
         pdfs = []
         for prices in prices_cum:
