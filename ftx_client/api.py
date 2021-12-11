@@ -113,8 +113,7 @@ class RestClient:
         resp = self._send_req(req)
         return resp
 
-    # TODO probably change this func name / swap it with other since it's backwards
-    def get_historical_prices(self, market, start, end, resolution) -> JsonResponse:
+    def get_prices(self, market, start, end, resolution) -> JsonResponse:
         """
         GET /markets/{market_name}/candles?resolution={resolution}&limit={limit}&start_time={start_time}&end_time={end_time}
 
@@ -263,7 +262,7 @@ class HelperClient(RestClient):
 
         def download_range(range):
             start, end = range
-            prices = self.get_historical_prices(coin, start, end, window_size_secs)
+            prices = self.get_prices(coin, start, end, window_size_secs)
             prices_cum[start] = prices
 
         ranges = []
@@ -294,7 +293,7 @@ class HelperClient(RestClient):
                 start_hum = datetime.datetime.utcfromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S')
                 end_hum = datetime.datetime.utcfromtimestamp(end).strftime('%Y-%m-%d %H:%M:%S')
                 logging.info('looping', start_hum, 'to', end_hum)
-            prices = self.get_historical_prices(f'{coin}', start, end, window_size_secs)
+            prices = self.get_prices(f'{coin}', start, end, window_size_secs)
             if verbose:
                 if 'result' in prices:
                     logging.info('fetched', len(prices['result']), 'results')
@@ -313,7 +312,7 @@ class HelperClient(RestClient):
         pdf.index = pd.to_datetime(pdf['startTime'].sort_values())
         return pdf
 
-    def get_prices(self, coin: str, since_date: datetime, window_size_secs: int, verbose=False) -> pd.DataFrame:
+    def get_historical_prices(self, coin: str, since_date: datetime, window_size_secs: int, verbose=False) -> pd.DataFrame:
         """
         Get price candles for a given market over a given window of time. This function handles pagination
 
