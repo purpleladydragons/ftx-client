@@ -235,11 +235,11 @@ class HelperClient(RestClient):
 
     # TODO specify end time
     # TODO change coin to market
-    def _get_prices_helper_threaded(self, coin: str, since_date: datetime, window_size_secs: int, verbose=False):
+    def _get_prices_helper_threaded(self, market: str, since_date: datetime, window_size_secs: int, verbose=False):
         """
         Download price candles in parallel using threads
 
-        :param coin: the market you care about, e.g "BTC/USD"
+        :param market: the market you care about, e.g "BTC/USD"
         :param since_date: start of window
         :param window_size_secs: size of the candle in seconds, e.g 60 = 1 minute
         :param verbose: flag to enable verbose logging
@@ -262,7 +262,7 @@ class HelperClient(RestClient):
 
         def download_range(range):
             start, end = range
-            prices = self.get_prices(coin, start, end, window_size_secs)
+            prices = self.get_prices(market, start, end, window_size_secs)
             prices_cum[start] = prices
 
         ranges = []
@@ -276,7 +276,7 @@ class HelperClient(RestClient):
         sorted_prices = [y[1] for y in sorted(list(prices_cum.items()), key=lambda x: x[0])]
         return sorted_prices
 
-    def _get_prices_helper(self, coin, since_date, window_size_secs, verbose=False):
+    def _get_prices_helper(self, market, since_date, window_size_secs, verbose=False):
         tildate = datetime.datetime.now()
         prices_til = int(time.mktime(tildate.timetuple()))
         since = int(time.mktime(since_date.timetuple()))
@@ -293,7 +293,7 @@ class HelperClient(RestClient):
                 start_hum = datetime.datetime.utcfromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S')
                 end_hum = datetime.datetime.utcfromtimestamp(end).strftime('%Y-%m-%d %H:%M:%S')
                 logging.info('looping', start_hum, 'to', end_hum)
-            prices = self.get_prices(f'{coin}', start, end, window_size_secs)
+            prices = self.get_prices(market, start, end, window_size_secs)
             if verbose:
                 if 'result' in prices:
                     logging.info('fetched', len(prices['result']), 'results')
@@ -312,17 +312,17 @@ class HelperClient(RestClient):
         pdf.index = pd.to_datetime(pdf['startTime'].sort_values())
         return pdf
 
-    def get_historical_prices(self, coin: str, since_date: datetime, window_size_secs: int, verbose=False) -> pd.DataFrame:
+    def get_historical_prices(self, market: str, since_date: datetime, window_size_secs: int, verbose=False) -> pd.DataFrame:
         """
         Get price candles for a given market over a given window of time. This function handles pagination
 
-        :param coin: market you care about, e.g "BTC/USD"
+        :param market: market you care about, e.g "BTC/USD"
         :param since_date: start time
         :param window_size_secs: candle size in seconds, e.g 60 = 1 minute
         :param verbose: flag to toggle verbose logging
         :return: DataFrame containing OHLCV data
         """
-        prices = self._get_prices_helper_threaded(coin, since_date, window_size_secs, verbose)
+        prices = self._get_prices_helper_threaded(market, since_date, window_size_secs, verbose)
         return self._combine_prices_into_df(prices)
 
     def get_historical_ticks_threaded(self, market, since, til):
