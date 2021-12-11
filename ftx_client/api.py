@@ -248,6 +248,7 @@ class HelperClient(RestClient):
         since = int(time.mktime(since_date.timetuple()))
         prices_til = int(time.mktime(end_date.timetuple()))
         prices_cum = []
+        errors = {}
 
         # FTX supports up to 1500 candles per page
         max_points_per_request = 1500
@@ -260,8 +261,11 @@ class HelperClient(RestClient):
 
         def download_range(range):
             start, end = range
-            prices = self.get_prices(market, start, end, window_size_secs)
-            prices_cum[start] = prices
+            resp = self.get_prices(market, start, end, window_size_secs)
+            if resp['success']:
+                prices_cum[start] = resp
+            else:
+                errors[start] = resp['error']
 
         ranges = []
         for start in range(since, prices_til, window_size_secs * max_points_per_request):
@@ -272,7 +276,7 @@ class HelperClient(RestClient):
             executor.map(download_range, ranges)
 
         sorted_prices = [y[1] for y in sorted(list(prices_cum.items()), key=lambda x: x[0])]
-        return sorted_prices
+        return sorted_prices, errors
 
     def _combine_prices_into_df(self, prices_cum):
         pdfs = []
@@ -284,7 +288,7 @@ class HelperClient(RestClient):
         return pdf
 
     def get_historical_prices(self, market: str, since_date: datetime, end_date: datetime,
-                              window_size_secs: int) -> pd.DataFrame:
+                              window_size_secs: int) -> Tuple[Optional[pd.DataFrame], Dict[int, str]] :
         """
         Get price candles for a given market over a given window of time. This function handles pagination
 
@@ -294,8 +298,8 @@ class HelperClient(RestClient):
         :param window_size_secs: candle size in seconds, e.g 60 = 1 minute
         :return: DataFrame containing OHLCV data
         """
-        prices = self._get_prices_helper_threaded(market, since_date, end_date, window_size_secs)
-        return self._combine_prices_into_df(prices)
+        prices, errors = self._get_prices_helper_threaded(market, since_date, end_date, window_size_secs)
+        return self._combine_prices_into_df(prices), errors
 
     def get_historical_ticks_threaded(self, market, since_date: datetime, end_date: datetime) -> Tuple[Optional[pd.DataFrame], Dict[int, str]]:
         """

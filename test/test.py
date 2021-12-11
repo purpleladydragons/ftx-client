@@ -29,12 +29,15 @@ def test_ticks_threaded():
 def test_prices_threaded():
     client = ftx_client.api.HelperClient(key=os.environ['API_KEY'], secret=os.environ['API_SECRET'], platform='com')
 
-    start = dt.datetime.now() - dt.timedelta(days=5)
-    end = dt.datetime.now()
-    then1 = time.time()
-    df = client.get_historical_prices('SOL-PERP', since_date=start, end_date=end, window_size_secs=60)
-    print(time.time() - then1)
-    print(len(df))
+    start = dateutil.parser.parse('2021-12-01 00:00:00+00:00')
+    end = start + dt.timedelta(seconds=60 * 60 * 15)
 
+    df, errors = client.get_historical_prices('BTC-PERP', since_date=start, end_date=end, window_size_secs=15)
+
+    with open(dirname + '/fixtures/candles.csv', 'r') as f:
+        # We have to rename the column since the read_csv isn't smart enough to index the column automatically
+        expected_df = pd.read_csv(f, index_col=0, parse_dates=True).rename(columns={'startTime.1': 'startTime'})
+        assert_frame_equal(df, expected_df)
 
 test_ticks_threaded()
+test_prices_threaded()
