@@ -395,8 +395,8 @@ class HelperClient(RestClient):
 
         return None
 
-    def _get_paginated_results(self, market: str, endpoint_func, start: datetime, end: datetime) -> Optional[
-        pd.DataFrame]:
+    def _get_paginated_results(self, market: str, endpoint_func, start: datetime, end: datetime) -> Tuple[Optional[
+        pd.DataFrame], Dict[int, str]]:
         """
         Helper function to download paginated results for a given endpoint
 
@@ -411,8 +411,8 @@ class HelperClient(RestClient):
         since_ts = int(time.mktime(start.timetuple()))
         til_ts = int(time.mktime(end.timetuple()))
 
-        # we'll accumulate the paginated results in this array
-        cum_ticks = []
+        cum_resps = []  # we'll accumulate the paginated results in this array
+        errors = {}  # any errors will be stored here, keyed by the failed window's start-time
 
         max_data_size = 100  # FTX supports up to 100 datapoints per page
         max_window_size = 60 * 60 * 24
@@ -429,19 +429,25 @@ class HelperClient(RestClient):
             end_hum = datetime.datetime.utcfromtimestamp(window_end).strftime('%Y-%m-%d %H:%M:%S')
             logging.info('Collecting funding rates from', start_hum, 'to', end_hum)
 
-            ticks = endpoint_func(market, start=window_start, end=window_end)
-            if len(ticks['result']) >= max_data_size and window_size > 1:
-                logging.info('too many results', len(ticks['result']))
+            resp = endpoint_func(market, start=window_start, end=window_end)
+            if not resp['success']:
+                errors[window_start] = resp['error']
+                continue
+
+            data = resp['result']
+
+            if len(data) >= max_data_size and window_size > 1:
+                logging.info('too many results', len(data))
                 window_size = max(1, window_size / 2)
                 window_end = window_start + window_size
                 continue
             else:
-                cum_ticks.append(ticks['result'])
+                cum_resps.append(data)
                 window_size = min(max_window_size, window_size * 2)
                 window_start = window_end
                 window_end = window_start + window_size
 
-        return self.consolidate_data(cum_ticks)
+        return self.consolidate_data(cum_resps), errors
 
     def get_historical_funding_rates(self, market: str, since: datetime, til: datetime) -> Optional[
         pd.DataFrame]:
