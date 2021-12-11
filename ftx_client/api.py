@@ -318,16 +318,23 @@ class HelperClient(RestClient):
         :return: a dataframe containing the results
         """
 
+        # the FTX API expects seconds-based timestamps, so we conver the datetimes
         since_ts = int(time.mktime(start.timetuple()))
         til_ts = int(time.mktime(end.timetuple()))
+
+        # we'll accumulate the paginated results in this array
         cum_ticks = []
 
-        max_data_size = 100
+        max_data_size = 100  # FTX supports up to 100 datapoints per page
         max_window_size = 60 * 60 * 24
         window_start = since_ts
         window_size = max_window_size
         window_end = window_start + window_size
 
+        # TODO probably better to include the first 100 points and use that window's end as new start time regardless of result
+
+        # We slide the window forward through time. If we grab too many datapoints, then we halve the window size
+        # repeatedly until it's no longer too large. Each time we successfully download a page, we double the window size
         while window_start < til_ts:
             if verbose:
                 start_hum = datetime.datetime.utcfromtimestamp(window_start).strftime('%Y-%m-%d %H:%M:%S')
@@ -336,7 +343,7 @@ class HelperClient(RestClient):
             ticks = endpoint_func(market, start=window_start, end=window_end)
             if len(ticks['result']) >= max_data_size and window_size > 1:
                 if verbose:
-                    logging.info('too many rates', len(ticks['result']))
+                    logging.info('too many results', len(ticks['result']))
                 window_size = max(1, window_size / 2)
                 window_end = window_start + window_size
                 continue
@@ -349,8 +356,9 @@ class HelperClient(RestClient):
         dfs = []
         for tick in cum_ticks:
             df = pd.DataFrame(tick)
-            # each request orders by time desc, so you get like: 5-4-3-2-1-9-8-7-6
-            # so reverse each df first before appending
+            # the page results are in ascending order
+            # but the points in each page are ordered by descending time
+            # so we reverse each df first before appending
             dfs.append(df.iloc[::-1])
         if len(dfs) > 0:
             df = pd.concat(dfs)
@@ -358,7 +366,8 @@ class HelperClient(RestClient):
             return df
         return None
 
-    def get_historical_funding_rates(self, market: str, since: datetime, til: datetime, verbose=False) -> Optional[pd.DataFrame]:
+    def get_historical_funding_rates(self, market: str, since: datetime, til: datetime, verbose=False) -> Optional[
+        pd.DataFrame]:
         """
         Get all the hourly funding rates for a given market in a given window of time.
 
@@ -370,7 +379,8 @@ class HelperClient(RestClient):
         """
         return self._get_paginated_results(market, self.get_funding_rates, since, til, verbose)
 
-    def get_historical_ticks(self, market: str, since: datetime, til: datetime, verbose=False) -> Optional[pd.DataFrame]:
+    def get_historical_ticks(self, market: str, since: datetime, til: datetime, verbose=False) -> Optional[
+        pd.DataFrame]:
         """
         Get all the ticks for a given market in a given window of time.
 
