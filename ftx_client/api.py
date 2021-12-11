@@ -8,14 +8,25 @@ from concurrent.futures import ThreadPoolExecutor
 import concurrent
 import logging
 from requests import Request, Session
-from typing import Optional
+from typing import Any, Dict, Optional
 
+JsonResponse = Dict[str, Any]
 
 class RestClient:
     us_api_url = 'https://ftx.us/api'
     com_api_url = 'https://ftx.com/api'
 
     def __init__(self, key, secret, platform='us'):
+        """
+        Create a client instance. FTX has two platforms with essentially identical APIs.
+        Some queries don't make sense for the US platform (like funding rates), but the syntax
+        for querying each is identical.
+
+        :param key: API key
+        :param secret: API secret
+        :param platform: 'us' or 'com' to indicate whether you want ftx.us or ftx.com, respectively
+        """
+
         if platform == 'us':
             self.api_url = RestClient.us_api_url
         else:
@@ -26,7 +37,7 @@ class RestClient:
 
     def _make_request(self, verb, endpoint, params={}, json_body={}):
         """
-        Make request to FTX US Rest API
+        Make request to FTX Rest API
 
         :param verb: HTTP Verb (GET, POST etc)
         :param endpoint: API endpoint
@@ -49,17 +60,28 @@ class RestClient:
 
         return prepared
 
-    def _send_req(self, request):
+    def _send_req(self, request) -> JsonResponse:
+        """
+        Helper method to send a prepared request.
+
+        FTX responds with a json payload:
+        For success: { 'success': True, 'result': ... }
+        For failure: { 'success': False, 'error': '...' }
+
+        :param request: the prepared request
+        :return: dict representing the json response
+        """
         resp = self._session.send(request)
         data = json.loads(resp.text)
         return data
 
-    def get_markets(self):
+    def get_markets(self) -> JsonResponse:
         req = self._make_request('GET', 'markets')
         return self._send_req(req)
 
-    def get_futures_stats(self, market):
+    def get_futures_stats(self, market) -> JsonResponse:
         """
+        Get stats for a given future
 
         :param market: relevant market / future, e.g BTC-PERP
         :return:
@@ -68,12 +90,17 @@ class RestClient:
         resp = self._send_req(req)
         return resp
 
-    def get_funding_rates(self, market, start, end):
+    def get_funding_rates(self, market, start, end) -> JsonResponse:
         """
+        GET /funding_rates
+
+        Get funding rates for a given future during a given window.
+        Note that this function will truncate the results if there are too many.
+        To see all rates, instead use :func:`HelperClient.get_historical_funding_rates`
 
         :param market: market/future you're interested in, e.g BTC-PERP
         :param start: start of the historical window you're interested in, in seconds-based timestamp
-        :param end: end of the window
+        :param end: end of the window, in seconds-based timestamp
         :return: 
         """
         endpoint = f'funding_rates'
@@ -86,15 +113,19 @@ class RestClient:
         resp = self._send_req(req)
         return resp
 
-    def get_historical_prices(self, market, start, end, resolution):
+    # TODO probably change this func name / swap it with other since it's backwards
+    def get_historical_prices(self, market, start, end, resolution) -> JsonResponse:
         """
         GET /markets/{market_name}/candles?resolution={resolution}&limit={limit}&start_time={start_time}&end_time={end_time}
+
+        Get OHLCV candles for a given market during a given window time. You can also specify the size of
+        the candles.
 
         :param market: market that you care about, e.g "BTC/USD"
         :param start: start of window in seconds-based timestamp
         :param end: end of window in seconds-based timestamp
         :param resolution: how to sample the given window, in seconds, e.g 60 to get 1 minute candles
-        :return: DataFrame-compatible table of OHLCV data
+        :return: result with DataFrame-compatible table of OHLCV data
         """
         params = {
             'start_time': start,
@@ -110,10 +141,10 @@ class RestClient:
         """
         GET /markets/{market_name}/trades?limit={limit}&start_time={start_time}&end_time={end_time}
 
-        :param market:
-        :param start:
-        :param end:
-        :return:
+        :param market: market that you care about, e.g "BTC/USD"
+        :param start: start of window in seconds-based timestamp
+        :param end: end of window in seconds-based timestamp
+        :return: result with DataFrame-compatible table of tick data
         """
         params = {
             'start_time': start,
@@ -125,22 +156,43 @@ class RestClient:
         resp = self._send_req(req)
         return resp
 
-    def get_orderbook(self, market):
+    def get_orderbook(self, market) -> JsonResponse:
+        """
+        GET /markets/{market}/orderbook
+
+        Get the current orderbook for a given market
+
+        :param market: market that you care about, e.g "BTC/USD"
+        :return: result of dict with 'bids' and 'asks' lists representing the current orderbook
+        """
+
         req = self._make_request('GET', f'markets/{market}/orderbook')
         resp = self._send_req(req)
         return resp
 
-    def get_order_status(self, order_id):
+    def get_order_status(self, order_id) -> JsonResponse:
         req = self._make_request('GET', f'orders/{order_id}')
         resp = self._send_req(req)
         return resp
 
-    def get_balances(self):
+    def get_balances(self) -> JsonResponse:
         req = self._make_request('GET', 'wallet/balances')
         resp = self._send_req(req)
         return resp
 
-    def place_order(self, **kwargs):
+    def place_order(self, **kwargs) -> JsonResponse:
+        """
+        Place an order.
+        If any of the required keywords are missing, then it will raise a `KeyError` and not place an order.
+
+        :param market: market you wish to place an order in
+        :param side: side you wish to take. 'BUY' or 'SELL'
+        :param price: limit price of the order
+        :param typ: type of the order. 'MARKET' or 'LIMIT'
+        :param size: size of the order
+        :param ioc: optional, indicates an IOC order. defaults to False
+        :return: result indicating order placement
+        """
         try:
             market = kwargs['market']
             side = kwargs['side']
@@ -150,7 +202,7 @@ class RestClient:
             ioc = kwargs.get('ioc', False)
         except KeyError as e:
             logging.error('Missing required param to send order', e)
-            return None
+            raise e
         json_body = {
             'market': market,
             'side': side,
@@ -171,31 +223,40 @@ class RestClient:
 
 
 class HelperClient(RestClient):
+    """
+    Helper methods to build upon the base client
+    """
     def __init__(self, key, secret, platform='us'):
+        """
+        :param key: API key
+        :param secret: API secret
+        :param platform: desired FTX platform. 'us' or 'com' for ftx.us or ftx.com, respectively
+        """
         super().__init__(key, secret, platform)
 
-    def _get_prices_helper_threaded(self, coin, since_date, window_size_secs, verbose=False):
+    # TODO specify end time
+    # TODO change coin to market
+    def _get_prices_helper_threaded(self, coin: str, since_date: datetime, window_size_secs: int, verbose=False):
         """
         Download price candles in parallel using threads
 
-        :param coin:
-        :param since_date:
-        :param window_size_secs:
-        :param verbose:
-        :return:
+        :param coin: the market you care about, e.g "BTC/USD"
+        :param since_date: start of window
+        :param window_size_secs: size of the candle in seconds, e.g 60 = 1 minute
+        :param verbose: flag to enable verbose logging
+        :return: list of the json responses
         """
         tildate = datetime.datetime.now()
         prices_til = int(time.mktime(tildate.timetuple()))
         since = int(time.mktime(since_date.timetuple()))
         prices_cum = []
 
-        # (end - start) / size = # of points needed
-        # #pts / 10k = # requests
-
+        # FTX supports up to 1500 candles per page
         max_points_per_request = 1500
 
+        # We can know ahead of time how many requests we need to make
         points_needed = (prices_til - since) / window_size_secs
-        logging.info(f'Making {max(1, points_needed / max_points_per_request)} requests')
+        logging.info(f'Making {max(1, (points_needed // max_points_per_request)) + 1} requests')
         now_secs = tildate.timestamp()
 
         prices_cum = {}
@@ -222,9 +283,6 @@ class HelperClient(RestClient):
         since = int(time.mktime(since_date.timetuple()))
         prices_cum = []
 
-        # (end - start) / size = # of points needed
-        # #pts / 10k = # requests
-
         max_points_per_request = 1500
 
         points_needed = (prices_til - since) / window_size_secs
@@ -236,7 +294,6 @@ class HelperClient(RestClient):
                 start_hum = datetime.datetime.utcfromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S')
                 end_hum = datetime.datetime.utcfromtimestamp(end).strftime('%Y-%m-%d %H:%M:%S')
                 logging.info('looping', start_hum, 'to', end_hum)
-            time.sleep(1)
             prices = self.get_historical_prices(f'{coin}', start, end, window_size_secs)
             if verbose:
                 if 'result' in prices:
@@ -256,14 +313,15 @@ class HelperClient(RestClient):
         pdf.index = pd.to_datetime(pdf['startTime'].sort_values())
         return pdf
 
-    def get_prices(self, coin, since_date, window_size_secs, verbose=False):
+    def get_prices(self, coin: str, since_date: datetime, window_size_secs: int, verbose=False) -> pd.DataFrame:
         """
+        Get price candles for a given market over a given window of time. This function handles pagination
 
-        :param coin:
-        :param since_date: DateTime
-        :param window_size_secs:
-        :param verbose:
-        :return:
+        :param coin: market you care about, e.g "BTC/USD"
+        :param since_date: start time
+        :param window_size_secs: candle size in seconds, e.g 60 = 1 minute
+        :param verbose: flag to toggle verbose logging
+        :return: DataFrame containing OHLCV data
         """
         prices = self._get_prices_helper_threaded(coin, since_date, window_size_secs, verbose)
         return self._combine_prices_into_df(prices)
@@ -329,6 +387,8 @@ class HelperClient(RestClient):
     def _get_paginated_results(self, market: str, endpoint_func, start: datetime, end: datetime, verbose) -> Optional[
         pd.DataFrame]:
         """
+        Helper function to download paginated results for a given endpoint
+
         :param market: market symbol, e.g BTC/USD
         :param endpoint_func: function that returns results from a single page for given symbol and window
         :param start: the earliest point to capture data from
@@ -336,7 +396,7 @@ class HelperClient(RestClient):
         :return: a dataframe containing the results
         """
 
-        # the FTX API expects seconds-based timestamps, so we conver the datetimes
+        # the FTX API expects seconds-based timestamps, so we convert the datetimes
         since_ts = int(time.mktime(start.timetuple()))
         til_ts = int(time.mktime(end.timetuple()))
 
