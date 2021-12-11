@@ -5,11 +5,8 @@ import datetime
 import pandas as pd
 import queue
 from concurrent.futures import ThreadPoolExecutor
-from threading import Semaphore
 import concurrent
-import sys
-
-
+import logging
 from requests import Request, Session
 
 
@@ -151,7 +148,7 @@ class RestClient:
             size = kwargs['size']
             ioc = kwargs.get('ioc', False)
         except KeyError as e:
-            print('Missing required param to send order', e)
+            logging.error('Missing required param to send order', e)
             return None
         json_body = {
             'market': market,
@@ -188,7 +185,7 @@ class HelperClient(RestClient):
         max_points_per_request = 1500
 
         points_needed = (prices_til - since) / window_size_secs
-        print(f'Making {max(1, points_needed / max_points_per_request)} requests')
+        logging.info(f'Making {max(1, points_needed / max_points_per_request)} requests')
         now_secs = tildate.timestamp()
 
         prices_cum = {}
@@ -221,21 +218,21 @@ class HelperClient(RestClient):
         max_points_per_request = 1500
 
         points_needed = (prices_til - since) / window_size_secs
-        print(f'Making {max(1, points_needed / max_points_per_request)} requests')
+        logging.info(f'Making {max(1, points_needed / max_points_per_request)} requests')
         now_secs = tildate.timestamp()
         for start in range(since, prices_til, window_size_secs * max_points_per_request):
             end = min(now_secs, start + window_size_secs * max_points_per_request)
             if verbose:
                 start_hum = datetime.datetime.utcfromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S')
                 end_hum = datetime.datetime.utcfromtimestamp(end).strftime('%Y-%m-%d %H:%M:%S')
-                print('looping', start_hum, 'to', end_hum)
+                logging.info('looping', start_hum, 'to', end_hum)
             time.sleep(1)
             prices = self.get_historical_prices(f'{coin}', start, end, window_size_secs)
             if verbose:
                 if 'result' in prices:
-                    print('fetched', len(prices['result']), 'results')
+                    logging.info('fetched', len(prices['result']), 'results')
                 else:
-                    print('error?', prices)
+                    logging.info('error?', prices)
             prices_cum.append(prices)
 
         return prices_cum
@@ -277,11 +274,11 @@ class HelperClient(RestClient):
             if verbose:
                 start_hum = datetime.datetime.utcfromtimestamp(window_start).strftime('%Y-%m-%d %H:%M:%S')
                 end_hum = datetime.datetime.utcfromtimestamp(window_end).strftime('%Y-%m-%d %H:%M:%S')
-                print('Collecting funding rates from', start_hum, 'to', end_hum)
+                logging.info('Collecting funding rates from', start_hum, 'to', end_hum)
             ticks = self.get_funding_rates(market, start=window_start, end=window_end)
             if len(ticks['result']) >= max_data_size and window_size > 1:
                 if verbose:
-                    print('too many rates', len(ticks['result']))
+                    logging.info('too many rates', len(ticks['result']))
                 window_size = max(1, window_size / 2)
                 window_end = window_start + window_size
                 continue
@@ -374,11 +371,11 @@ class HelperClient(RestClient):
             if verbose:
                 start_hum = datetime.datetime.utcfromtimestamp(window_start).strftime('%Y-%m-%d %H:%M:%S')
                 end_hum = datetime.datetime.utcfromtimestamp(window_end).strftime('%Y-%m-%d %H:%M:%S')
-                print('Collecting ticks from', start_hum, 'to', end_hum)
+                logging.info('Collecting ticks from', start_hum, 'to', end_hum)
             ticks = self.get_ticks(market, start=window_start, end=window_end)
             if len(ticks['result']) >= max_data_size and window_size > 1:
                 if verbose:
-                    print('too many ticks', len(ticks['result']))
+                    logging.info('too many ticks', len(ticks['result']))
                 window_size = max(1, window_size / 2)
                 window_end = window_start + window_size
                 continue
