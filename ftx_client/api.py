@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import concurrent
 import logging
 from requests import Request, Session
+from typing import Optional
 
 
 class RestClient:
@@ -189,11 +190,11 @@ class HelperClient(RestClient):
         now_secs = tildate.timestamp()
 
         prices_cum = {}
+
         def download_range(range):
             start, end = range
             prices = self.get_historical_prices(f'{coin}', start, end, window_size_secs)
             prices_cum[start] = prices
-
 
         ranges = []
         for start in range(since, prices_til, window_size_secs * max_points_per_request):
@@ -258,48 +259,6 @@ class HelperClient(RestClient):
         prices = self._get_prices_helper_threaded(coin, since_date, window_size_secs, verbose)
         return self._combine_prices_into_df(prices)
 
-    # TODO fking carbon copy of get_historical_ticks so DRY it
-    def get_historical_funding_rates(self, market, since, til, verbose=False):
-        since_ts = int(time.mktime(since.timetuple()))
-        til_ts = int(time.mktime(til.timetuple()))
-        cum_ticks = []
-
-        max_data_size = 100
-        max_window_size = 60 * 60 * 24
-        window_start = since_ts
-        window_size = max_window_size
-        window_end = window_start + window_size
-
-        while window_start < til_ts:
-            if verbose:
-                start_hum = datetime.datetime.utcfromtimestamp(window_start).strftime('%Y-%m-%d %H:%M:%S')
-                end_hum = datetime.datetime.utcfromtimestamp(window_end).strftime('%Y-%m-%d %H:%M:%S')
-                logging.info('Collecting funding rates from', start_hum, 'to', end_hum)
-            ticks = self.get_funding_rates(market, start=window_start, end=window_end)
-            if len(ticks['result']) >= max_data_size and window_size > 1:
-                if verbose:
-                    logging.info('too many rates', len(ticks['result']))
-                window_size = max(1, window_size / 2)
-                window_end = window_start + window_size
-                continue
-            else:
-                cum_ticks.append(ticks['result'])
-                window_size = min(max_window_size, window_size * 2)
-                window_start = window_end
-                window_end = window_start + window_size
-
-        dfs = []
-        for tick in cum_ticks:
-            df = pd.DataFrame(tick)
-            # each request orders by time desc, so you get like: 5-4-3-2-1-9-8-7-6
-            # so reverse each df first before appending
-            dfs.append(df.iloc[::-1])
-        if len(dfs) > 0:
-            df = pd.concat(dfs)
-            df.index = pd.to_datetime(df['time'])
-            return df
-        return None
-
     def get_historical_ticks_threaded(self, market, since, til):
         cum_ticks = {}
         max_threads = 80
@@ -349,16 +308,18 @@ class HelperClient(RestClient):
             df.index = pd.to_datetime(df['time'])
             return df
 
-    def get_historical_ticks(self, market, since, til, verbose=False):
+    def _get_paginated_results(self, market: str, endpoint_func, start: datetime, end: datetime, verbose) -> Optional[
+        pd.DataFrame]:
+        """
+        :param market: market symbol, e.g BTC/USD
+        :param endpoint_func: function that returns results from a single page for given symbol and window
+        :param start: the earliest point to capture data from
+        :param end: the latest point to capture data from
+        :return: a dataframe containing the results
         """
 
-        :param market: e.g BTC/USD
-        :param since: datetime
-        :param til: datetime
-        :return:
-        """
-        since_ts = int(time.mktime(since.timetuple()))
-        til_ts = int(time.mktime(til.timetuple()))
+        since_ts = int(time.mktime(start.timetuple()))
+        til_ts = int(time.mktime(end.timetuple()))
         cum_ticks = []
 
         max_data_size = 100
@@ -371,11 +332,11 @@ class HelperClient(RestClient):
             if verbose:
                 start_hum = datetime.datetime.utcfromtimestamp(window_start).strftime('%Y-%m-%d %H:%M:%S')
                 end_hum = datetime.datetime.utcfromtimestamp(window_end).strftime('%Y-%m-%d %H:%M:%S')
-                logging.info('Collecting ticks from', start_hum, 'to', end_hum)
-            ticks = self.get_ticks(market, start=window_start, end=window_end)
+                logging.info('Collecting funding rates from', start_hum, 'to', end_hum)
+            ticks = endpoint_func(market, start=window_start, end=window_end)
             if len(ticks['result']) >= max_data_size and window_size > 1:
                 if verbose:
-                    logging.info('too many ticks', len(ticks['result']))
+                    logging.info('too many rates', len(ticks['result']))
                 window_size = max(1, window_size / 2)
                 window_end = window_start + window_size
                 continue
@@ -396,3 +357,27 @@ class HelperClient(RestClient):
             df.index = pd.to_datetime(df['time'])
             return df
         return None
+
+    def get_historical_funding_rates(self, market: str, since: datetime, til: datetime, verbose=False) -> Optional[pd.DataFrame]:
+        """
+        Get all the hourly funding rates for a given market in a given window of time.
+
+        :param market: market symbol, e.g BTC/USD
+        :param since:
+        :param til:
+        :param verbose:
+        :return:
+        """
+        return self._get_paginated_results(market, self.get_funding_rates, since, til, verbose)
+
+    def get_historical_ticks(self, market: str, since: datetime, til: datetime, verbose=False) -> Optional[pd.DataFrame]:
+        """
+        Get all the ticks for a given market in a given window of time.
+
+        :param market: market symbol, e.g BTC/USD
+        :param since:
+        :param til:
+        :param verbose:
+        :return:
+        """
+        return self._get_paginated_results(market, self.get_ticks, since, til, verbose)
