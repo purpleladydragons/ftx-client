@@ -260,15 +260,25 @@ class HelperClient(RestClient):
         return self._combine_prices_into_df(prices)
 
     def get_historical_ticks_threaded(self, market, since, til):
+        """
+        Request tick data in parallel. Since we can't know ahead of time how many ticks occur in a given window,
+        we use a thread pool and a queue to add and remove tasks.
+
+        The smallest resolution that FTX supports is 1 second. If there are >100 ticks in a second,
+        then we can only retrieve the first 100.
+
+        :param market:
+        :param since:
+        :param til:
+        :return:
+        """
         cum_ticks = {}
         max_threads = 80
-        last_update = None
 
         def _thread_action(window_start, window_end):
             # TODO some error handling around missing 'result' key
-            nonlocal last_update
-            last_update = time.time()
             ticks = self.get_ticks(market, start=window_start, end=window_end)['result']
+            # TODO would it be more efficient to just save the first 100 in and then put the last tick's time in as a new task? rather than repeat work for both?
             # if too many results, split the window and put them back on the queue
             if len(ticks) >= 100 and window_end - window_start > 1:
                 new_end = (window_start + window_end) // 2
@@ -286,8 +296,7 @@ class HelperClient(RestClient):
             q.put((since_ts, til_ts))
             last_update = time.time()
 
-            # TODO this logic seems to work somewhat "coincidentally". probably be more explicit about why you need the time check but also the try/except
-            # only exit if queue is empty AND all threads are available
+            # TODO this exit logic should be improved
             while not (q.empty() and time.time() - last_update > 15):
                 try:
                     item = q.get(timeout=5)
