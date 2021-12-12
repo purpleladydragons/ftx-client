@@ -62,4 +62,4 @@ def test_prices_threaded():
 
 
 test_ticks_threaded()
-test_prices_threaded()
+# test_prices_threaded()
