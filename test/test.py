@@ -14,11 +14,9 @@ sys.path.append("ftx_client")
 print(dirname)
 sys.path.append("..")
 import api
-import ftx_client.api
-
 
 def test_ticks_threaded():
-    client = ftx_client.api.HelperClient(
+    client = api.HelperClient(
         key=os.environ["API_KEY"], secret=os.environ["API_SECRET"], platform="com"
     )
 
