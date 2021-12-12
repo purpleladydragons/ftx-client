@@ -27,6 +27,9 @@ def test_ticks_threaded():
         "BTC-PERP", since_date=start, end_date=end
     )
 
+    print(df)
+    print(errors)
+
     with open(dirname + "/fixtures/ticks.csv", "r") as f:
         # We have to rename the column since the read_csv isn't smart enough to index the column automatically
         expected_df = pd.read_csv(f, index_col=0, parse_dates=True).rename(
@@ -36,7 +39,7 @@ def test_ticks_threaded():
 
 
 def test_prices_threaded():
-    client = ftx_client.api.HelperClient(
+    client = api.HelperClient(
         key=os.environ["API_KEY"], secret=os.environ["API_SECRET"], platform="com"
     )
 
