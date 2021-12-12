@@ -392,6 +392,10 @@ class HelperClient(RestClient):
                     print('empty queue :(')
                     continue
 
+            print('done looping')
+
+        print('done wiht exec')
+
         # the threads can save the data in any order, so we sort the results by the start of their window
         # and then take the data from each
         data = [
