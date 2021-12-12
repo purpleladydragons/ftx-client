@@ -27,6 +27,8 @@ def test_ticks_threaded():
         "BTC-PERP", since_date=start, end_date=end
     )
 
+    print(errors)
+
     with open(dirname + "/fixtures/ticks.csv", "r") as f:
         # We have to rename the column since the read_csv isn't smart enough to index the column automatically
         expected_df = pd.read_csv(f, index_col=0, parse_dates=True).rename(
