@@ -36,41 +36,34 @@ class RestClient:
         self._api_key = key
         self._api_secret = secret
 
-    def _make_request(self, verb, endpoint, params={}, json_body={}):
+    def _make_request(self, verb, endpoint, auth=False, params={}, json_body={}):
         """
         Make request to FTX Rest API
 
         :param verb: HTTP Verb (GET, POST etc)
         :param endpoint: API endpoint
+        :param auth: whether this request should authenticate, needed for certain routes
         :param params: Query params
         :param json_body: JSON payload params
         :return:
         """
-        print('make req')
         ts = int(time.time() * 1000)
-        print('ts doen')
         request = Request(
             verb, f"{self.api_url}/{endpoint}", params=params, json=json_body
         )
-        print('req done')
         prepared = request.prepare()
-        print('prep done')
-        # signature_payload = f"{ts}{prepared.method}{prepared.path_url}".encode()
-        print('payload done')
-        # if prepared.body:
-        #     print('o no')
-        #     signature_payload += prepared.body
-        print('body done')
+        if auth:
+            signature_payload = f"{ts}{prepared.method}{prepared.path_url}".encode()
+            if prepared.body:
+                signature_payload += prepared.body
 
-        # signature = hmac.new(
-        #     self._api_secret.encode(), signature_payload, "sha256"
-        # ).hexdigest()
-        print('sig done')
+            signature = hmac.new(
+                self._api_secret.encode(), signature_payload, "sha256"
+            ).hexdigest()
 
-        # prepared.headers["FTXUS-KEY"] = self._api_key
-        # prepared.headers["FTXUS-SIGN"] = signature
-        # prepared.headers["FTXUS-TS"] = str(ts)
-        print('headers done')
+            prepared.headers["FTXUS-KEY"] = self._api_key
+            prepared.headers["FTXUS-SIGN"] = signature
+            prepared.headers["FTXUS-TS"] = str(ts)
 
         return prepared
 
@@ -123,7 +116,7 @@ class RestClient:
             "start_time": start,
             "end_time": end,
         }
-        req = self._make_request("GET", endpoint, params)
+        req = self._make_request("GET", endpoint, params=params)
         resp = self._send_req(req)
         return resp
 
@@ -142,7 +135,7 @@ class RestClient:
         """
         params = {"start_time": start, "end_time": end, "resolution": resolution}
         endpoint = f"markets/{market}/candles"
-        req = self._make_request("GET", endpoint, params)
+        req = self._make_request("GET", endpoint, params=params)
         resp = self._send_req(req)
         return resp
 
@@ -155,14 +148,10 @@ class RestClient:
         :param end: end of window in seconds-based timestamp
         :return: result with DataFrame-compatible table of tick data
         """
-        print("GETTING IT")
         params = {"start_time": start, "end_time": end, "limit": 100}
         endpoint = f"markets/{market}/trades"
-        req = self._make_request("GET", endpoint, params)
-        print("REQ MADE")
+        req = self._make_request("GET", endpoint, params=params)
         resp = self._send_req(req)
-        print("RESP IN HAND")
-        print("RESP", resp)
         return resp
 
     def get_orderbook(self, market) -> JsonResponse:
@@ -222,7 +211,7 @@ class RestClient:
             "clientId": None,
         }
         req = self._make_request(
-            verb="POST", endpoint="orders", params={}, json_body=json_body
+            verb="POST", endpoint="orders", auth=True, params={}, json_body=json_body
         )
         resp = self._send_req(req)
         return resp
@@ -348,8 +337,6 @@ class HelperClient(RestClient):
         max_threads = 80
         last_update = None
 
-        print("DOING IT")
-
         def _thread_action(window_start: int, window_end: int) -> None:
             """
             Download ticks for the given window. If the result is too large,
@@ -366,12 +353,10 @@ class HelperClient(RestClient):
             resp = self.get_ticks(market, start=window_start, end=window_end)
             # record error if failed response
             if not resp["success"]:
-                print('fail!', resp['error'])
                 errors[window_start] = resp["error"]
                 return
 
             ticks = resp["result"]
-            print('ticks?', len(ticks))
             # TODO would it be more efficient to just save the first 100 in and then put the last tick's time in as a new task? rather than repeat work for both?
             # if too many results, split the window and put them back on the queue
             if len(ticks) >= 100 and window_end - window_start > 1:
@@ -395,26 +380,17 @@ class HelperClient(RestClient):
             # so to prevent the main thread from exiting prematurely based on `q.empty()`, we also check that there
             # haven't been any recent updates to the threads' progress
             while not (q.empty() and time.time() - last_update > 15):
-                print('loopy boi', time.time() - last_update)
                 try:
-                    item = q.get(timeout=120)
-                    print(item)
+                    item = q.get(timeout=5)
                     executor.submit(_thread_action, item[0], item[1])
                 except queue.Empty:
-                    print('empty queue :(')
                     continue
-
-            print('done looping')
-
-        print('done wiht exec')
 
         # the threads can save the data in any order, so we sort the results by the start of their window
         # and then take the data from each
         data = [
             y[1] for y in sorted([x for x in cum_ticks.items()], key=lambda kv: kv[0])
         ]
-
-        print('what the fuck')
 
         return self.consolidate_data(data), errors
 
