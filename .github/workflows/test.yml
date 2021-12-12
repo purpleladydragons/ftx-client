@@ -18,7 +18,5 @@ jobs:
 
       - name: Integration tests
         run: |
-          pwd
-          ls
           python test/test.py
 

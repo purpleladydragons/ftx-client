@@ -78,7 +78,6 @@ class RestClient:
         """
         resp = self._session.send(request)
         data = json.loads(resp.text)
-        print('data:', data)
         return data
 
     def get_markets(self) -> JsonResponse:
@@ -147,6 +146,7 @@ class RestClient:
         :param end: end of window in seconds-based timestamp
         :return: result with DataFrame-compatible table of tick data
         """
+        print("GETTING IT")
         params = {"start_time": start, "end_time": end, "limit": 100}
         endpoint = f"markets/{market}/trades"
         req = self._make_request("GET", endpoint, params)
@@ -335,6 +335,8 @@ class HelperClient(RestClient):
         errors = {}
         max_threads = 80
         last_update = None
+
+        print("DOING IT")
 
         def _thread_action(window_start: int, window_end: int) -> None:
             """
