@@ -18,5 +18,6 @@ jobs:
 
       - name: Integration tests
         run: |
+          pwd
           python test/test.py
 
