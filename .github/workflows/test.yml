@@ -17,5 +17,5 @@ jobs:
 
       - name: Integration tests
         run: |
-          python tests/test.py
+          python test/test.py
 
