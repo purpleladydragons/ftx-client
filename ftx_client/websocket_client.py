@@ -3,6 +3,15 @@
 from threading import Thread, Lock
 
 from websocket import WebSocketApp
+import hmac
+import json
+import time
+import zlib
+from collections import defaultdict, deque
+from itertools import zip_longest
+from typing import DefaultDict, Deque, List, Dict, Tuple, Optional
+from gevent.event import Event
+import os
 
 
 class WebsocketManager:
@@ -90,19 +99,6 @@ class WebsocketManager:
     def reconnect(self) -> None:
         if self.ws is not None:
             self._reconnect(self.ws)
-
-
-import hmac
-import json
-import time
-import zlib
-from collections import defaultdict, deque
-from itertools import zip_longest
-from typing import DefaultDict, Deque, List, Dict, Tuple, Optional
-from gevent.event import Event
-import os
-
-# from websocket.websocket_manager import WebsocketManager
 
 
 class FtxWebsocketClient(WebsocketManager):

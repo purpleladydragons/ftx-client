@@ -11,6 +11,7 @@ dirname = os.path.dirname(__file__)
 sys.path.append("ftx_client")
 import api
 
+
 def test_ticks_threaded():
     client = api.HelperClient(
         key='', secret='', platform="com"

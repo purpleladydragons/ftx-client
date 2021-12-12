@@ -7,5 +7,4 @@ setup(name='FTX Client',
       author_email='asteady23@gmail.com',
       url='http://austinsteady.com',
       packages=['ftx_client'],
-      install_requires=['pandas', 'requests', 'simplejson']
-     )
+      install_requires=['pandas', 'requests', 'simplejson'])
