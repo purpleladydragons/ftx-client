@@ -379,9 +379,9 @@ class HelperClient(RestClient):
             # it's possible that the threads can consume all the tasks faster than they can put new tasks on the queue,
             # so to prevent the main thread from exiting prematurely based on `q.empty()`, we also check that there
             # haven't been any recent updates to the threads' progress
-            while not (q.empty() and time.time() - last_update > 150):
+            while not (q.empty() and time.time() - last_update > 15):
                 try:
-                    item = q.get(timeout=60)
+                    item = q.get(timeout=5)
                     executor.submit(_thread_action, item[0], item[1])
                 except queue.Empty:
                     continue
@@ -391,6 +391,8 @@ class HelperClient(RestClient):
         data = [
             y[1] for y in sorted([x for x in cum_ticks.items()], key=lambda kv: kv[0])
         ]
+
+        print('responses', len(data))
 
         return self.consolidate_data(data), errors
 
