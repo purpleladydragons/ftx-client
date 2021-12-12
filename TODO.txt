@@ -1,15 +1,16 @@
 Documentation
 - [x] docstrings
-- [] comments explaining threading stuff
-- [] clean up log msgs
+- [x] comments explaining threading stuff
+- [x] clean up log msgs
 
 Refactoring
-- [] methods should all take same time type, whether it's datetime or int
+- [x] methods should all take same time type, whether it's datetime or int
 - [x] what should we do about threaded vs non thread for prices?
-- [] what about ticks etc too?
+- [x] what about ticks etc too?
 - [] should we return dataframes or stick to json?
-- [] DRY out the df consolidation code
-- [] handle errors in json responses
+- [x] DRY out the df consolidation code
+- [x] handle errors in json responses
+- [x] args should named consistently
 
 Performance
 - [] consider the 100-first approach of the downloads
