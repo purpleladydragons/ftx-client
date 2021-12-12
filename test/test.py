@@ -17,7 +17,7 @@ import api
 
 def test_ticks_threaded():
     client = api.HelperClient(
-        key=os.environ["API_KEY"], secret=os.environ["API_SECRET"], platform="com"
+        key='', secret='', platform="com"
     )
 
     start = dateutil.parser.parse("2021-12-01 00:00:00+00:00")
