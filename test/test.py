@@ -9,9 +9,9 @@ import os
 
 dirname = os.path.dirname(__file__)
 
-sys.path.append("../ftx_client")
+# sys.path.append("../ftx_client")
 sys.path.append("ftx_client")
-sys.path.append("..")
+# sys.path.append("..")
 import api
 
 def test_ticks_threaded():
