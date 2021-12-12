@@ -387,6 +387,7 @@ class HelperClient(RestClient):
                 print('loopy boi', time.time() - last_update)
                 try:
                     item = q.get(timeout=5)
+                    print(item)
                     executor.submit(_thread_action, item[0], item[1])
                 except queue.Empty:
                     print('empty queue :(')
