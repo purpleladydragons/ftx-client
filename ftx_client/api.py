@@ -110,7 +110,7 @@ class RestClient:
         :param end: end of the window, in seconds-based timestamp
         :return:
         """
-        endpoint = f"funding_rates"
+        endpoint = "funding_rates"
         params = {
             "future": market,
             "start_time": start,
@@ -357,7 +357,7 @@ class HelperClient(RestClient):
                 return
 
             ticks = resp["result"]
-            # TODO would it be more efficient to just save the first 100 in and then put the last tick's time in as a new task? rather than repeat work for both?
+            # TODO would it be more efficient to save the first 100 in and then put the last tick's time in as a new task? rather than repeat work for both?
             # if too many results, split the window and put them back on the queue
             if len(ticks) >= 100 and window_end - window_start > 1:
                 new_end = (window_start + window_end) // 2

@@ -1,0 +1,4 @@
+pandas==1.0.2
+requests==2.4.3
+black==21.12b0
+flake8==4.0.1

@@ -11,10 +11,9 @@ dirname = os.path.dirname(__file__)
 sys.path.append("ftx_client")
 import api
 
+
 def test_ticks_threaded():
-    client = api.HelperClient(
-        key='', secret='', platform="com"
-    )
+    client = api.HelperClient(key="", secret="", platform="com")
 
     start = dateutil.parser.parse("2021-12-01 00:00:00+00:00")
     end = start + dt.timedelta(seconds=60 * 60)
@@ -32,9 +31,7 @@ def test_ticks_threaded():
 
 
 def test_prices_threaded():
-    client = api.HelperClient(
-        key='', secret='', platform="com"
-    )
+    client = api.HelperClient(key="", secret="", platform="com")
 
     start = dateutil.parser.parse("2021-12-01 00:00:00+00:00")
     end = start + dt.timedelta(seconds=60 * 60 * 15)
