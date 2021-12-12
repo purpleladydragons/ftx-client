@@ -390,7 +390,7 @@ class HelperClient(RestClient):
                     executor.submit(_thread_action, item[0], item[1])
                 except queue.Empty:
                     print('empty queue :(')
-                    break
+                    continue
 
         # the threads can save the data in any order, so we sort the results by the start of their window
         # and then take the data from each
