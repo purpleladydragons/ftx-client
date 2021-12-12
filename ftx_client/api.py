@@ -55,21 +55,21 @@ class RestClient:
         print('req done')
         prepared = request.prepare()
         print('prep done')
-        signature_payload = f"{ts}{prepared.method}{prepared.path_url}".encode()
+        # signature_payload = f"{ts}{prepared.method}{prepared.path_url}".encode()
         print('payload done')
-        if prepared.body:
-            print('o no')
-            signature_payload += prepared.body
+        # if prepared.body:
+        #     print('o no')
+        #     signature_payload += prepared.body
         print('body done')
 
-        signature = hmac.new(
-            self._api_secret.encode(), signature_payload, "sha256"
-        ).hexdigest()
+        # signature = hmac.new(
+        #     self._api_secret.encode(), signature_payload, "sha256"
+        # ).hexdigest()
         print('sig done')
 
-        prepared.headers["FTXUS-KEY"] = self._api_key
-        prepared.headers["FTXUS-SIGN"] = signature
-        prepared.headers["FTXUS-TS"] = str(ts)
+        # prepared.headers["FTXUS-KEY"] = self._api_key
+        # prepared.headers["FTXUS-SIGN"] = signature
+        # prepared.headers["FTXUS-TS"] = str(ts)
         print('headers done')
 
         return prepared
