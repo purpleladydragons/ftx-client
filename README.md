@@ -2,7 +2,7 @@
 
 A python wrapper and client for the FTX API.
 
-In addition to support basic routes, this client also provides helper methods to quickly download paginated results.
+In addition to supporting basic routes, this client also provides helper methods to quickly download paginated results.
 
 ## Usage
 
