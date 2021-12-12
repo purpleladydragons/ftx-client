@@ -384,11 +384,12 @@ class HelperClient(RestClient):
             # so to prevent the main thread from exiting prematurely based on `q.empty()`, we also check that there
             # haven't been any recent updates to the threads' progress
             while not (q.empty() and time.time() - last_update > 15):
-                print('loopy boi')
+                print('loopy boi', time.time() - last_update)
                 try:
                     item = q.get(timeout=5)
                     executor.submit(_thread_action, item[0], item[1])
                 except queue.Empty:
+                    print('empty queue :(')
                     break
 
         # the threads can save the data in any order, so we sort the results by the start of their window
