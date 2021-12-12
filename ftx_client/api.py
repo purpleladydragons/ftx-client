@@ -150,7 +150,10 @@ class RestClient:
         params = {"start_time": start, "end_time": end, "limit": 100}
         endpoint = f"markets/{market}/trades"
         req = self._make_request("GET", endpoint, params)
+        print("REQ MADE")
         resp = self._send_req(req)
+        print("RESP IN HAND")
+        print("RESP", resp)
         return resp
 
     def get_orderbook(self, market) -> JsonResponse:
