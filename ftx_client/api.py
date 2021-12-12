@@ -78,6 +78,7 @@ class RestClient:
         """
         resp = self._session.send(request)
         data = json.loads(resp.text)
+        print('data:', data)
         return data
 
     def get_markets(self) -> JsonResponse:
