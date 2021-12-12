@@ -10,6 +10,8 @@ import os
 dirname = os.path.dirname(__file__)
 
 sys.path.append("../ftx_client")
+print(dirname)
+sys.path.append("..")
 import ftx_client.api
 
 
