@@ -393,6 +393,8 @@ class HelperClient(RestClient):
         ]
 
         print('responses', len(data))
+        for key in data.keys():
+            print(key)
 
         return self.consolidate_data(data), errors
 
