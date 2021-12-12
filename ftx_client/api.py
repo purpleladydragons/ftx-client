@@ -393,7 +393,7 @@ class HelperClient(RestClient):
         ]
 
         print('responses', len(data))
-        for key in data.keys():
+        for key in cum_ticks.keys():
             print(key)
 
         return self.consolidate_data(data), errors
