@@ -58,6 +58,7 @@ class RestClient:
         signature_payload = f"{ts}{prepared.method}{prepared.path_url}".encode()
         print('payload done')
         if prepared.body:
+            print('o no')
             signature_payload += prepared.body
         print('body done')
 
