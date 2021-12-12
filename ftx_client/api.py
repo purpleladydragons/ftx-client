@@ -396,6 +396,8 @@ class HelperClient(RestClient):
             y[1] for y in sorted([x for x in cum_ticks.items()], key=lambda kv: kv[0])
         ]
 
+        print('what the fuck')
+
         return self.consolidate_data(data), errors
 
     def consolidate_data(self, data: List[pd.DataFrame]) -> Optional[pd.DataFrame]:
