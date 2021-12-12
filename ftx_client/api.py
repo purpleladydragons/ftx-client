@@ -246,8 +246,8 @@ class HelperClient(RestClient):
         :param window_size_secs: size of the candle in seconds, e.g 60 = 1 minute
         :return: list of the json responses
         """
-        since = since_date.timestamp()
-        prices_til = end_date.timestamp()
+        since = int(since_date.timestamp())
+        prices_til = int(end_date.timestamp())
         prices_cum = []
         errors = {}
 
@@ -366,8 +366,8 @@ class HelperClient(RestClient):
             else:
                 cum_ticks[window_start] = ticks
 
-        since_ts = since_date.timestamp()
-        end_ts = end_date.timestamp()
+        since_ts = int(since_date.timestamp())
+        end_ts = int(end_date.timestamp())
 
         with ThreadPoolExecutor(max_workers=max_threads) as executor:
             q = queue.Queue(1000)
@@ -430,8 +430,8 @@ class HelperClient(RestClient):
         """
 
         # the FTX API expects seconds-based timestamps, so we convert the datetimes
-        since_ts = start.timestamp()
-        til_ts = end.timestamp()
+        since_ts = int(start.timestamp())
+        til_ts = int(end.timestamp())
 
         cum_resps = []  # we'll accumulate the paginated results in this array
         errors = (

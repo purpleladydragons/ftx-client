@@ -33,7 +33,7 @@ def test_ticks_threaded():
 
 def test_prices_threaded():
     client = api.HelperClient(
-        key=os.environ["API_KEY"], secret=os.environ["API_SECRET"], platform="com"
+        key='', secret='', platform="com"
     )
 
     start = dateutil.parser.parse("2021-12-01 00:00:00+00:00")
@@ -52,4 +52,4 @@ def test_prices_threaded():
 
 
 test_ticks_threaded()
-# test_prices_threaded()
+test_prices_threaded()
