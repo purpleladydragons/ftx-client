@@ -46,22 +46,30 @@ class RestClient:
         :param json_body: JSON payload params
         :return:
         """
+        print('make req')
         ts = int(time.time() * 1000)
+        print('ts doen')
         request = Request(
             verb, f"{self.api_url}/{endpoint}", params=params, json=json_body
         )
+        print('req done')
         prepared = request.prepare()
+        print('prep done')
         signature_payload = f"{ts}{prepared.method}{prepared.path_url}".encode()
+        print('payload done')
         if prepared.body:
             signature_payload += prepared.body
+        print('body done')
 
         signature = hmac.new(
             self._api_secret.encode(), signature_payload, "sha256"
         ).hexdigest()
+        print('sig done')
 
         prepared.headers["FTXUS-KEY"] = self._api_key
         prepared.headers["FTXUS-SIGN"] = signature
         prepared.headers["FTXUS-TS"] = str(ts)
+        print('headers done')
 
         return prepared
 
