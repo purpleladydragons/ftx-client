@@ -1,7 +1,6 @@
 import sys
 
 import datetime as dt
-import time
 import pandas as pd
 from pandas.testing import assert_frame_equal
 import dateutil
@@ -9,9 +8,7 @@ import os
 
 dirname = os.path.dirname(__file__)
 
-# sys.path.append("../ftx_client")
 sys.path.append("ftx_client")
-# sys.path.append("..")
 import api
 
 def test_ticks_threaded():
