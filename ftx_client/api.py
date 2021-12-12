@@ -384,6 +384,7 @@ class HelperClient(RestClient):
             # so to prevent the main thread from exiting prematurely based on `q.empty()`, we also check that there
             # haven't been any recent updates to the threads' progress
             while not (q.empty() and time.time() - last_update > 15):
+                print('loopy boi')
                 try:
                     item = q.get(timeout=5)
                     executor.submit(_thread_action, item[0], item[1])
