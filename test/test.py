@@ -13,6 +13,7 @@ sys.path.append("../ftx_client")
 sys.path.append("ftx_client")
 print(dirname)
 sys.path.append("..")
+import api
 import ftx_client.api
 
 
