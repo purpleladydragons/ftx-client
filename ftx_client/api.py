@@ -357,10 +357,12 @@ class HelperClient(RestClient):
             resp = self.get_ticks(market, start=window_start, end=window_end)
             # record error if failed response
             if not resp["success"]:
+                print('fail!', resp['error'])
                 errors[window_start] = resp["error"]
                 return
 
             ticks = resp["result"]
+            print('ticks?', len(ticks))
             # TODO would it be more efficient to just save the first 100 in and then put the last tick's time in as a new task? rather than repeat work for both?
             # if too many results, split the window and put them back on the queue
             if len(ticks) >= 100 and window_end - window_start > 1:
