@@ -36,12 +36,13 @@ class RestClient:
         self._api_key = key
         self._api_secret = secret
 
-    def _make_request(self, verb, endpoint, params={}, json_body={}):
+    def _make_request(self, verb, endpoint, auth=False, params={}, json_body={}):
         """
         Make request to FTX Rest API
 
         :param verb: HTTP Verb (GET, POST etc)
         :param endpoint: API endpoint
+        :param auth: whether this request should authenticate, needed for certain routes
         :param params: Query params
         :param json_body: JSON payload params
         :return:
@@ -51,17 +52,18 @@ class RestClient:
             verb, f"{self.api_url}/{endpoint}", params=params, json=json_body
         )
         prepared = request.prepare()
-        signature_payload = f"{ts}{prepared.method}{prepared.path_url}".encode()
-        if prepared.body:
-            signature_payload += prepared.body
+        if auth:
+            signature_payload = f"{ts}{prepared.method}{prepared.path_url}".encode()
+            if prepared.body:
+                signature_payload += prepared.body
 
-        signature = hmac.new(
-            self._api_secret.encode(), signature_payload, "sha256"
-        ).hexdigest()
+            signature = hmac.new(
+                self._api_secret.encode(), signature_payload, "sha256"
+            ).hexdigest()
 
-        prepared.headers["FTXUS-KEY"] = self._api_key
-        prepared.headers["FTXUS-SIGN"] = signature
-        prepared.headers["FTXUS-TS"] = str(ts)
+            prepared.headers["FTXUS-KEY"] = self._api_key
+            prepared.headers["FTXUS-SIGN"] = signature
+            prepared.headers["FTXUS-TS"] = str(ts)
 
         return prepared
 
@@ -114,7 +116,7 @@ class RestClient:
             "start_time": start,
             "end_time": end,
         }
-        req = self._make_request("GET", endpoint, params)
+        req = self._make_request("GET", endpoint, params=params)
         resp = self._send_req(req)
         return resp
 
@@ -133,7 +135,7 @@ class RestClient:
         """
         params = {"start_time": start, "end_time": end, "resolution": resolution}
         endpoint = f"markets/{market}/candles"
-        req = self._make_request("GET", endpoint, params)
+        req = self._make_request("GET", endpoint, params=params)
         resp = self._send_req(req)
         return resp
 
@@ -148,7 +150,7 @@ class RestClient:
         """
         params = {"start_time": start, "end_time": end, "limit": 100}
         endpoint = f"markets/{market}/trades"
-        req = self._make_request("GET", endpoint, params)
+        req = self._make_request("GET", endpoint, params=params)
         resp = self._send_req(req)
         return resp
 
@@ -209,7 +211,7 @@ class RestClient:
             "clientId": None,
         }
         req = self._make_request(
-            verb="POST", endpoint="orders", params={}, json_body=json_body
+            verb="POST", endpoint="orders", auth=True, params={}, json_body=json_body
         )
         resp = self._send_req(req)
         return resp
@@ -244,8 +246,8 @@ class HelperClient(RestClient):
         :param window_size_secs: size of the candle in seconds, e.g 60 = 1 minute
         :return: list of the json responses
         """
-        since = since_date.timestamp()
-        prices_til = end_date.timestamp()
+        since = int(since_date.timestamp())
+        prices_til = int(end_date.timestamp())
         prices_cum = []
         errors = {}
 
@@ -364,8 +366,8 @@ class HelperClient(RestClient):
             else:
                 cum_ticks[window_start] = ticks
 
-        since_ts = since_date.timestamp()
-        end_ts = end_date.timestamp()
+        since_ts = int(since_date.timestamp())
+        end_ts = int(end_date.timestamp())
 
         with ThreadPoolExecutor(max_workers=max_threads) as executor:
             q = queue.Queue(1000)
@@ -382,7 +384,7 @@ class HelperClient(RestClient):
                     item = q.get(timeout=5)
                     executor.submit(_thread_action, item[0], item[1])
                 except queue.Empty:
-                    break
+                    continue
 
         # the threads can save the data in any order, so we sort the results by the start of their window
         # and then take the data from each
@@ -428,8 +430,8 @@ class HelperClient(RestClient):
         """
 
         # the FTX API expects seconds-based timestamps, so we convert the datetimes
-        since_ts = start.timestamp()
-        til_ts = end.timestamp()
+        since_ts = int(start.timestamp())
+        til_ts = int(end.timestamp())
 
         cum_resps = []  # we'll accumulate the paginated results in this array
         errors = (

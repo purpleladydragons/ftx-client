@@ -1,7 +1,6 @@
 import sys
 
 import datetime as dt
-import time
 import pandas as pd
 from pandas.testing import assert_frame_equal
 import dateutil
@@ -9,13 +8,12 @@ import os
 
 dirname = os.path.dirname(__file__)
 
-sys.path.append("../ftx_client")
-import ftx_client.api
-
+sys.path.append("ftx_client")
+import api
 
 def test_ticks_threaded():
-    client = ftx_client.api.HelperClient(
-        key=os.environ["API_KEY"], secret=os.environ["API_SECRET"], platform="com"
+    client = api.HelperClient(
+        key='', secret='', platform="com"
     )
 
     start = dateutil.parser.parse("2021-12-01 00:00:00+00:00")
@@ -34,8 +32,8 @@ def test_ticks_threaded():
 
 
 def test_prices_threaded():
-    client = ftx_client.api.HelperClient(
-        key=os.environ["API_KEY"], secret=os.environ["API_SECRET"], platform="com"
+    client = api.HelperClient(
+        key='', secret='', platform="com"
     )
 
     start = dateutil.parser.parse("2021-12-01 00:00:00+00:00")
