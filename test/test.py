@@ -35,6 +35,7 @@ def test_ticks_threaded():
         expected_df = pd.read_csv(f, index_col=0, parse_dates=True).rename(
             columns={"time.1": "time"}
         )
+        print('how is this even possible?')
         assert_frame_equal(df, expected_df)
 
 
